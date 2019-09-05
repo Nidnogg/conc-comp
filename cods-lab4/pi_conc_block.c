@@ -6,16 +6,15 @@
 
 #define NTHREADS 4
 
-typedef struct {
+typedef struct { // Structure for thread arguments
   int tid;
   long long int n;
 } t_Args;
 
-double start, finish, elapsed;
+double start, finish, elapsed; // Time tracking variables
 double sumA = 0.0;
 double sumB = 0.0;
 double pi = 0.0;
-
 
 void * increment(void *t_args) {
   t_Args *args = (t_Args *) t_args;
@@ -24,7 +23,6 @@ void * increment(void *t_args) {
   long long int b_size, b_start, b_end;
   double *partial_sum;
 
-  
   b_size = n/NTHREADS;
   b_start = tid * b_size;
   if(tid < NTHREADS-1) b_end = b_start + b_size;
@@ -48,11 +46,11 @@ void * increment(void *t_args) {
       *partial_sum -= 1.0/(2.0*i + 1.0);
     }  
   }
+
   free(args);
   pthread_exit((void *) partial_sum);
 }
 
-//implement increment function
 int main(int argc, char *argv[]) {
 
   pthread_t *tids;
@@ -97,28 +95,11 @@ int main(int argc, char *argv[]) {
 
   pi = 4 * (pi);
 
-
   free(tids);
 
   GET_TIME(finish);
   elapsed = finish - start;
   printf("M_PI %lf pi %lf time elapsed %lf\n", M_PI, pi, elapsed);
-  /*
-  for(i = 0; i < n; i++) {
-    if(i % 2 == 0) {
-      sum -= 1.0/(aux + 3.0);
-      printf("IF i %lli i mod 2 %lli %lf\n", i, i %2,  (aux + 3.0));
-      aux += 2.0;
-    } else {
-      printf("ELSE i %lli i mod 2 %lli %lf\n", i, i %2,  (aux + 3.0));
-      sum += 1.0/(aux + 3.0);
-      aux += 2.0;
-    }
-  }
-
-  sum = 4.0 * sum;
-  printf("M_PI %lf pi %lf\n", M_PI, sum);
-  */
 
   return 0;
 }
