@@ -1,0 +1,3 @@
+Tempo inicializacoes: 6.30477047
+Tempo multiplica matriz com 2 threads: 0.11880561
+Tempo finalizacoes: 0.00887268

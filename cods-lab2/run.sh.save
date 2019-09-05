@@ -1,0 +1,5 @@
+  //exibe os tempos gastos em cada parte do programa 
+  printf("Tempo inicializacoes: %.8lf\n", delta1);
+  printf("Tempo incremento vetor com %d threads: %.8lf\n", nthreads, delta2);
+  printf("Tempo finalizacoes: %.8lf\n", delta3);
+
