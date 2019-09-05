@@ -1,5 +1,6 @@
 CC=gcc
 CFLAGS=-Wall -lpthread -pthread
+LFLAGS=-lm
 DEBUG=-g
 
 SRCS = $(wildcard *.c)
@@ -9,7 +10,7 @@ PROGS = $(patsubst %.c,%,$(SRCS))
 all: $(PROGS)
 
 %: %.c
-	$(CC) $(CFLAGS) -o $@ $<
+	$(CC) $(DEBUG) $(CFLAGS) -o $@ $< $(LFLAGS)
 
 .PHONY: clean
 clean: 
