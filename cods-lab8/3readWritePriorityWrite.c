@@ -11,9 +11,9 @@ typedef struct {
     int count;
 } t_args;
 
-//my bois dem globals...
+//dem glob
 int thread_counter = 0;
-int reading = 0, writing = 0;
+int reading = 0, writing = 0, waitingToWrite = 0;
 pthread_mutex_t mutex;
 pthread_cond_t cond_read, cond_write;
 t_args args;
@@ -26,10 +26,9 @@ int bobo (int id, int baba) {
 
 void startRead() {
     pthread_mutex_lock(&mutex);
-    while(writing > 0) { 
+    while(writing > 0 || waitingToWrite > 0) { 
         pthread_cond_wait(&cond_read, &mutex);
     }
-
     reading++;
     pthread_mutex_unlock(&mutex);
 }
@@ -45,9 +44,11 @@ void endRead() {
 
 void startWrite() {
     pthread_mutex_lock(&mutex);
+    waitingToWrite++;
     while((reading > 0 || writing > 0)) {
         pthread_cond_wait(&cond_write, &mutex);
     }
+    waitingToWrite--;
     writing++;
     pthread_mutex_unlock(&mutex);
 
@@ -59,7 +60,8 @@ void endWrite() {
     writing--;
     
     pthread_cond_signal(&cond_write);
-    pthread_cond_broadcast(&cond_read);
+    if(!waitingToWrite)
+        pthread_cond_broadcast(&cond_read);
 
     pthread_mutex_unlock(&mutex);
 }
