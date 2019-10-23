@@ -7,7 +7,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <time      .h>
+#include <pthread.h>
+#include "timer.h"
 
 float quad (float a, float b, float err, int input);
 float midPoint (float a, float b);
@@ -16,9 +17,10 @@ int main(int argc, char* argv[]) {
   float a, b; //Intervalo de integração
   float err;
   float result;
-  int input; 
-  clock_t begin = clock();
-
+  int input;
+  double t_start, t_end, t_spent;
+ 
+  GET_TIME(t_start);
 
   if(argc < 4) {
     fprintf(stderr, "Parameters: %s <start of interval(a)> <end of interval(b)> <max error(err)>  \n", argv[0]);
@@ -40,17 +42,27 @@ int main(int argc, char* argv[]) {
          "7) cos(e^(−x))∗(0.005 ∗ (x**3) + 1)\n");
 
   scanf("%d", &input);
+
+  // Quits if user input is incorrect
   if(input < 1 || input > 7) { 
     printf("Invalid input\n"); 
     exit(-1);
   }
 
+  if(input == 2){
+      if((a <= -1 || b <= -1) || (a >= 1 || b >= 1)){
+          printf("Invalid interval\n");
+          exit(-1);
+      }
+  }
+
   result = quad(a, b, err, input);
   printf("Estimated area: %f\n", result);
 
-  clock_t end = clock();
-  double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Execution time: %.4f\n", time_spent);
+  GET_TIME(t_end);
+
+  t_spent = t_end - t_start;
+  printf("Execution time: %f seconds\n", t_spent);
     
   return 0;
 }
@@ -68,7 +80,85 @@ float quad (float a, float b, float err, int input) {
       current_area_small1 = (bigRectX - a) * (1 + smallRectX1);
       current_area_small2 = (b - bigRectX) * (1 + smallRectX2);
 
-      if(abs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
+      if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
+        return current_area_large;
+      } else {
+        float area = quad(a, bigRectX, err, input) + quad(bigRectX, b, err, input);
+        return area;
+      }
+      break;
+
+    case 2: //sqrt(1-x^2)
+      current_area_large = (b - a) * sqrt(1 - pow(bigRectX, 2));
+      current_area_small1 = (bigRectX - a) * sqrt(1 - pow(smallRectX1, 2));
+      current_area_small2 = (b - bigRectX) * sqrt(1 - pow(smallRectX2, 2));
+
+      if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
+        return current_area_large;
+      } else {
+        float area = quad(a, bigRectX, err, input) + quad(bigRectX, b, err, input);
+        return area;
+      }
+      break;
+
+    case 3: //sqrt(1 + x^4)
+      current_area_large = (b - a) * sqrt(1 + pow(bigRectX, 4));
+      current_area_small1 = (bigRectX - a) * sqrt(1 + pow(smallRectX1, 4));
+      current_area_small2 = (b - bigRectX) * sqrt(1 + pow(smallRectX2, 4));
+
+      if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
+        return current_area_large;
+      } else {
+        float area = quad(a, bigRectX, err, input) + quad(bigRectX, b, err, input);
+        return area;
+      }
+      break;    
+
+    case 4: //sin(x^2)
+      current_area_large = (b - a) * sin(pow(bigRectX, 2));
+      current_area_small1 = (bigRectX - a) * sin(pow(smallRectX1, 2));
+      current_area_small2 = (b - bigRectX) * sin(pow(smallRectX2, 2));
+
+      if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
+        return current_area_large;
+      } else {
+        float area = quad(a, bigRectX, err, input) + quad(bigRectX, b, err, input);
+        return area;
+      }
+      break;
+
+    case 5: //cos(e^-x)
+      current_area_large = (b - a) * cos(pow(M_E, bigRectX * -1));
+      current_area_small1 = (bigRectX - a) * cos(pow(M_E, smallRectX1 * -1));
+      current_area_small2 = (b - bigRectX) * cos(pow(M_E, smallRectX2 * -1));
+
+      if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
+        return current_area_large;
+      } else {
+        float area = quad(a, bigRectX, err, input) + quad(bigRectX, b, err, input);
+        return area;
+      }
+      break;        
+
+    case 6: //cos(e^-x) * x
+      current_area_large = (b - a) * cos(pow(M_E, bigRectX * -1)) * bigRectX;
+      current_area_small1 = (bigRectX - a) * cos(pow(M_E, smallRectX1 * -1)) * smallRectX1;
+      current_area_small2 = (b - bigRectX) * cos(pow(M_E, smallRectX2 * -1)) * smallRectX2;
+
+      if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
+        return current_area_large;
+      } else {
+        float area = quad(a, bigRectX, err, input) + quad(bigRectX, b, err, input);
+        return area;
+      }
+      break;
+      
+    case 7: //cos(e^-x) * (0.005 * x^3 + 1)
+      current_area_large = (b - a) * cos(pow(M_E, bigRectX * -1)) * (0.005 * pow(bigRectX, 3) + 1);
+      current_area_small1 = (bigRectX - a) * cos(pow(M_E, smallRectX1 * -1)) * (0.005 * pow(smallRectX1, 3) + 1);
+      current_area_small2 = (b - bigRectX) * cos(pow(M_E, smallRectX2 * -1)) * (0.005 * pow(smallRectX2, 3) + 1);
+
+      if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
         return current_area_large;
       } else {
         float area = quad(a, bigRectX, err, input) + quad(bigRectX, b, err, input);
