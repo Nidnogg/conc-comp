@@ -10,14 +10,14 @@
 #include <pthread.h>
 #include "timer.h"
 
-float quad (float a, float b, float err, int input);
+float quad (float a, float b, float err, int input_function_type);
 float midPoint (float a, float b);
 int main(int argc, char* argv[]) {
 
   float a, b; //Intervalo de integração
   float err;
   float result;
-  int input;
+  int input_function_type;
   double t_start, t_end, t_spent;
  
   GET_TIME(t_start);
@@ -41,22 +41,22 @@ int main(int argc, char* argv[]) {
          "6) cos(e^(−x))∗x\n"
          "7) cos(e^(−x))∗(0.005 ∗ (x**3) + 1)\n");
 
-  scanf("%d", &input);
+  scanf("%d", &input_function_type);
 
-  // Quits if user input is incorrect
-  if(input < 1 || input > 7) { 
-    printf("Invalid input\n"); 
+  // Quits if user input_function_type is incorrect
+  if(input_function_type < 1 || input_function_type > 7) { 
+    printf("Invalid input_function_type\n"); 
     exit(-1);
   }
 
-  if(input == 2){
+  if(input_function_type == 2){
       if((a <= -1 || b <= -1) || (a >= 1 || b >= 1)){
           printf("Invalid interval\n");
           exit(-1);
       }
   }
 
-  result = quad(a, b, err, input);
+  result = quad(a, b, err, input_function_type);
   printf("Estimated area: %f\n", result);
 
   GET_TIME(t_end);
@@ -67,14 +67,14 @@ int main(int argc, char* argv[]) {
   return 0;
 }
 
-float quad (float a, float b, float err, int input) {
+float quad (float a, float b, float err, int input_function_type) {
 
   float current_area_large, current_area_small1, current_area_small2;
   float bigRectX = midPoint(a, b); //initial mid point
   float smallRectX1 = midPoint(a, bigRectX);
   float smallRectX2 = midPoint(bigRectX, b);
 
-  switch(input) {
+  switch(input_function_type) {
     case 1: // 1 + x
       current_area_large = (b - a) * (1 + bigRectX);
       current_area_small1 = (bigRectX - a) * (1 + smallRectX1);
@@ -83,7 +83,7 @@ float quad (float a, float b, float err, int input) {
       if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
         return current_area_large;
       } else {
-        float area = quad(a, bigRectX, err, input) + quad(bigRectX, b, err, input);
+        float area = quad(a, bigRectX, err, input_function_type) + quad(bigRectX, b, err, input_function_type);
         return area;
       }
       break;
@@ -96,7 +96,7 @@ float quad (float a, float b, float err, int input) {
       if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
         return current_area_large;
       } else {
-        float area = quad(a, bigRectX, err, input) + quad(bigRectX, b, err, input);
+        float area = quad(a, bigRectX, err, input_function_type) + quad(bigRectX, b, err, input_function_type);
         return area;
       }
       break;
@@ -109,7 +109,7 @@ float quad (float a, float b, float err, int input) {
       if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
         return current_area_large;
       } else {
-        float area = quad(a, bigRectX, err, input) + quad(bigRectX, b, err, input);
+        float area = quad(a, bigRectX, err, input_function_type) + quad(bigRectX, b, err, input_function_type);
         return area;
       }
       break;    
@@ -122,7 +122,7 @@ float quad (float a, float b, float err, int input) {
       if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
         return current_area_large;
       } else {
-        float area = quad(a, bigRectX, err, input) + quad(bigRectX, b, err, input);
+        float area = quad(a, bigRectX, err, input_function_type) + quad(bigRectX, b, err, input_function_type);
         return area;
       }
       break;
@@ -135,7 +135,7 @@ float quad (float a, float b, float err, int input) {
       if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
         return current_area_large;
       } else {
-        float area = quad(a, bigRectX, err, input) + quad(bigRectX, b, err, input);
+        float area = quad(a, bigRectX, err, input_function_type) + quad(bigRectX, b, err, input_function_type);
         return area;
       }
       break;        
@@ -148,7 +148,7 @@ float quad (float a, float b, float err, int input) {
       if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
         return current_area_large;
       } else {
-        float area = quad(a, bigRectX, err, input) + quad(bigRectX, b, err, input);
+        float area = quad(a, bigRectX, err, input_function_type) + quad(bigRectX, b, err, input_function_type);
         return area;
       }
       break;
@@ -161,13 +161,13 @@ float quad (float a, float b, float err, int input) {
       if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
         return current_area_large;
       } else {
-        float area = quad(a, bigRectX, err, input) + quad(bigRectX, b, err, input);
+        float area = quad(a, bigRectX, err, input_function_type) + quad(bigRectX, b, err, input_function_type);
         return area;
       }
       break;
 
     default:
-      printf("Invalid input\n");
+      printf("Invalid input_function_type\n");
       exit(-1);
       break;
   }
