@@ -11,7 +11,8 @@
 #include "timer.h"
 
 #define NTHREADS 2
-#define SIZERECTARRAY
+#define SIZERECTARRAY 1024
+#define SPLITRECTANGLES 5   // Número de Retângulos que serão gerados apartir de um maior pelas Threads
 
 float function(float x, int functionId);
 float midPoint(float a, float b);
@@ -26,44 +27,78 @@ typedef struct {
   float area, a, b;
 } Rect_t;
 
-// GLOBAL VARIABLES
+// Variáveis Globais
 pthread_mutex_t mutex;
 pthread_cond_t cond;
 
-// Variavel Global de Retorno das Threads
-float totalArea = 0;
+float totalArea = 0; //Retorno das Threads
+float err;
 
 // Variaveis Globais do Buffer
 Rect_t rectsBuffer[SIZERECTARRAY];
-int bufferPointerToRead = 0;
-int bufferPointerToWrite = 0;
+int bufferPointer = 0;
 int elementsInBuffer = 0;
 
 
 
 // Função Executada pelas Threads
 void * compute_area (void *arg) {
-  Args_t *args = (Args_t *) arg;
-  float area, a, b;
-  while(1) {
-        pthread_mutex_lock(&mutex);
-        if(elementsInBuffer == 0){
-            free(arg);
-            pthread_exit(NULL);
-        }
-        else if(elementsInBuffer == SIZERECTARRAY){
+    Args_t *args = (Args_t *) arg;
+    float areaBigRect, a, b;
+    float areaSmallRects[SPLITRECTANGLES], totalAreaSmallRects, intervalStart, intervalLength;
+
+    pthread_mutex_lock(&mutex);
+
+    while(elementsInBuffer > 0) {
+        if(elementsInBuffer > SIZERECTARRAY) {
             printf("ERROR! Buffer size limit reached.\n");
             exit(-1);
         }
 
-        a = rectsBuffer[bufferPointerToRead]->a;
-        b = rectsBuffer[bufferPointerToRead]->b;
-        area = rectsBuffer[bufferPointerToRead]->area;
-        bufferPointerToRead = (bufferPointerToRead + 1) % SIZERECTARRAY; // "Remove" o Retangulo do Buffer
+        a = rectsBuffer[bufferPointer].a;
+        b = rectsBuffer[bufferPointer].b;
+        areaBigRect = rectsBuffer[bufferPointer].area;
+
+        bufferPointer = (bufferPointer + 1) % SIZERECTARRAY; // "Remove" o Retangulo do Buffer
         elementsInBuffer--;
         pthread_mutex_unlock(&mutex);
-        //TODO -> Calcular Mini Retangulos desse Retangulo e comparar o Erro. Se for alto, adicionar os Mini Retangulos ao Buffer. Caso contrário, adicionar a área encontrada à Área Total (variavel global) e repetir o processo até não haver mais Retangulos no Buffer.
-  }
+
+        // PARTE CONCORRENTE
+
+        totalAreaSmallRects = 0;
+        intervalStart = a;
+        intervalLength = (b - a) / SPLITRECTANGLES;
+
+        for(int i = 0; i < SPLITRECTANGLES; i++) {
+            areaSmallRects[i] = intervalLength * function(midPoint(intervalStart, intervalStart + intervalLength), args->input_function_type);
+            totalAreaSmallRects += areaSmallRects[i];
+            intervalStart += intervalLength;
+        }
+
+        if(fabs(areaBigRect - totalAreaSmallRects) > err) {
+            intervalStart = a;
+            pthread_mutex_lock(&mutex);
+            printf("tid %d criou rect\n", args->idThread);
+            for(int i = 0; i < SPLITRECTANGLES; i++) {
+              bufferPointer = (bufferPointer - 1) % SIZERECTARRAY; // Sobe o ponteiro do buffer para "empilhar" o novo retângulo
+              elementsInBuffer += 1; // Incrementa o contador de elementos no buffer
+
+              // Armazena no Buffer as informações sobre cada Retângulo Menor novo:
+              rectsBuffer[bufferPointer].a = intervalStart;
+              intervalStart += intervalLength;
+              rectsBuffer[bufferPointer].b = intervalStart;
+              rectsBuffer[bufferPointer].area = areaSmallRects[i];
+            }
+            pthread_mutex_unlock(&mutex);
+        } else { 
+          printf('entei no eus tid %d\n', args->idThread);
+          totalArea += areaBigRect;
+        }
+        pthread_mutex_lock(&mutex);
+    }
+
+  free(arg);
+  pthread_exit(NULL);
 }
 
 
@@ -73,8 +108,6 @@ int main(int argc, char* argv[]) {
 
   Args_t *arg; //Receberá os argumentos para a thread
   float a, b; //Intervalo de integração
-  float err;
-  float result;
   int input;
   double t_start, t_end, t_spent;
  
@@ -111,8 +144,8 @@ int main(int argc, char* argv[]) {
     exit(-1);
   }
 
-  if(input == 2){
-      if((a <= -1 || b <= -1) || (a >= 1 || b >= 1)){
+  if(input == 2) {
+      if((a <= -1 || b <= -1) || (a >= 1 || b >= 1)) {
           printf("Invalid interval\n");
           exit(-1);
       }
@@ -121,12 +154,11 @@ int main(int argc, char* argv[]) {
 
   // Readies Buffer With First NTHREADS Rectangles
   elementsInBuffer = NTHREADS;
-  bufferPointerToRead = 0;
-  bufferPointerToWrite = NTHREADS;
-  for(int i = 0; i < NTHREADS; i++){
-    rectsBuffer[i]->a = a + i * (b - a) / NTHREADS;
-    rectsBuffer[i]->b = rectsBuffer[i]->a + (b - a) / NTHREADS;
-    rectsBuffer[i]->area = function(midPoint(rectsBuffer[i]->a, rectsBuffer[i]->b), input);
+  bufferPointer = 0;
+  for(int i = 0; i < NTHREADS; i++) {
+    rectsBuffer[i].a = a + i * (b - a) / NTHREADS;
+    rectsBuffer[i].b = rectsBuffer[i].a + (b - a) / NTHREADS;
+    rectsBuffer[i].area = function(midPoint(rectsBuffer[i].a, rectsBuffer[i].b), input);
   }
 
   // Creates Threads
@@ -150,7 +182,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  printf("Estimated area: %f\n", areaTotal);
+  printf("Estimated area: %f\n", totalArea);
   GET_TIME(t_end);
 
   t_spent = t_end - t_start;
@@ -158,30 +190,38 @@ int main(int argc, char* argv[]) {
     
   pthread_mutex_destroy(&mutex);
   pthread_cond_destroy(&cond);
-  free(tids);
+ // free(tids);
   printf("Main thread finished\n");
   pthread_exit(NULL);
 }
 
 
 
-float function(float x, int functionId){
-    switch(functionId){
+float function(float x, int functionId) {
+    switch(functionId) {
         case 1:
             return (1 + x);
+            break;
         case 2:
             return sqrt(1 - pow(x, 2));
+            break;
         case 3:
             return sqrt(1 + pow(x, 4));
+            break;
         case 4:
             return sin(pow(x, 2));
+            break;
         case 5:
             return cos(pow(M_E, x * -1));
+            break;
         case 6:
             return cos(pow(M_E, x * -1)) * x;
+            break;
         case 7:
             return cos(pow(M_E, x * -1)) * (0.005 * pow(x, 3) + 1);
+            break;
     }
+    return -1;
 }
 
 

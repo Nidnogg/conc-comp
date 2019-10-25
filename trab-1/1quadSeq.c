@@ -11,8 +11,9 @@
 #include "timer.h"
 
 // Protótipos de Funções 
-float quad (float a, float b, float err, int input_function_type);
-float midPoint (float a, float b);
+float function(float x, int functionId);
+float quad(float a, float b, float err, int input_function_type);
+float midPoint(float a, float b);
 int main(int argc, char* argv[]) {
 
   float a, b; // Intervalo de integração
@@ -66,119 +67,61 @@ int main(int argc, char* argv[]) {
 
   GET_TIME(t_end);
   t_spent = t_end - t_start;
-  printf("Execution time: %f seconds\n", t_spent);
+  printf("Execution time: %.3fs\n", t_spent);
     
   return 0;
 }
 
+float function(float x, int functionId) {
+    switch(functionId) {
+        case 1:
+            return (1 + x);
+            break;
+        case 2:
+            return sqrt(1 - pow(x, 2));
+            break;
+        case 3:
+            return sqrt(1 + pow(x, 4));
+            break;
+        case 4:
+            return sin(pow(x, 2));
+            break;
+        case 5:
+            return cos(pow(M_E, x * -1));
+            break;
+        case 6:
+            return cos(pow(M_E, x * -1)) * x;
+            break;
+        case 7:
+            return cos(pow(M_E, x * -1)) * (0.005 * pow(x, 3) + 1);
+            break;
+    }
+    return -1;
+}
+
 // Nessa função, input_function_type determina qual caso teste (qual função a ser integrada) será realizado
-float quad (float a, float b, float err, int input_function_type) {
+float quad(float a, float b, float err, int input_function_type) {
 
   float current_area_large, current_area_small1, current_area_small2; //current_area_large é área do retângulo maior, small1 é a do triangulo
   float bigRectX = midPoint(a, b); // x do ponto médio inicial
   float smallRectX1 = midPoint(a, bigRectX); // ponto médio do retângulo small1
   float smallRectX2 = midPoint(bigRectX, b); // ponto médio do retângulo small2
+  
+  current_area_large = (b - a) * function(bigRectX, input_function_type);
+  current_area_small1 = (bigRectX - a) * function(smallRectX1, input_function_type);
+  current_area_small2 = (b - bigRectX) * function(smallRectX2, input_function_type);
 
-  switch(input_function_type) {
-    case 1: // f(x) = 1 + x
-      current_area_large = (b - a) * (1 + bigRectX)
-      current_area_small1 = (bigRectX - a) * (1 + smallRectX1);
-      current_area_small2 = (b - bigRectX) * (1 + smallRectX2);
-
-      // Subtração para ver se a aproximação é boa
-      if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
-        return current_area_large;
-      } else {
-        float area = quad(a, bigRectX, err, input_function_type) + quad(bigRectX, b, err, input_function_type);
-        return area;
-      }
-      break;
-
-    case 2: // f(x) = sqrt(1-x^2)
-      current_area_large = (b - a) * sqrt(1 - pow(bigRectX, 2));
-      current_area_small1 = (bigRectX - a) * sqrt(1 - pow(smallRectX1, 2));
-      current_area_small2 = (b - bigRectX) * sqrt(1 - pow(smallRectX2, 2));
-
-      if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
-        return current_area_large;
-      } else {
-        float area = quad(a, bigRectX, err, input_function_type) + quad(bigRectX, b, err, input_function_type);
-        return area;
-      }
-      break;
-
-    case 3: // f(x) = sqrt(1 + x^4)
-      current_area_large = (b - a) * sqrt(1 + pow(bigRectX, 4));
-      current_area_small1 = (bigRectX - a) * sqrt(1 + pow(smallRectX1, 4));
-      current_area_small2 = (b - bigRectX) * sqrt(1 + pow(smallRectX2, 4));
-
-      if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
-        return current_area_large;
-      } else {
-        float area = quad(a, bigRectX, err, input_function_type) + quad(bigRectX, b, err, input_function_type);
-        return area;
-      }
-      break;    
-
-    case 4: // f(x) = sin(x^2)
-      current_area_large = (b - a) * sin(pow(bigRectX, 2));
-      current_area_small1 = (bigRectX - a) * sin(pow(smallRectX1, 2));
-      current_area_small2 = (b - bigRectX) * sin(pow(smallRectX2, 2));
-
-      if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
-        return current_area_large;
-      } else {
-        float area = quad(a, bigRectX, err, input_function_type) + quad(bigRectX, b, err, input_function_type);
-        return area;
-      }
-      break;
-
-    case 5: // f(x) = cos(e^-x)
-      current_area_large = (b - a) * cos(pow(M_E, bigRectX * -1));
-      current_area_small1 = (bigRectX - a) * cos(pow(M_E, smallRectX1 * -1));
-      current_area_small2 = (b - bigRectX) * cos(pow(M_E, smallRectX2 * -1));
-
-      if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
-        return current_area_large;
-      } else {
-        float area = quad(a, bigRectX, err, input_function_type) + quad(bigRectX, b, err, input_function_type);
-        return area;
-      }
-      break;        
-
-    case 6: // f(x) = cos(e^-x) * x
-      current_area_large = (b - a) * cos(pow(M_E, bigRectX * -1)) * bigRectX;
-      current_area_small1 = (bigRectX - a) * cos(pow(M_E, smallRectX1 * -1)) * smallRectX1;
-      current_area_small2 = (b - bigRectX) * cos(pow(M_E, smallRectX2 * -1)) * smallRectX2;
-
-      if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
-        return current_area_large;
-      } else {
-        float area = quad(a, bigRectX, err, input_function_type) + quad(bigRectX, b, err, input_function_type);
-        return area;
-      }
-      break;
-      
-    case 7: // f(x) = cos(e^-x) * (0.005 * x^3 + 1)
-      current_area_large = (b - a) * cos(pow(M_E, bigRectX * -1)) * (0.005 * pow(bigRectX, 3) + 1);
-      current_area_small1 = (bigRectX - a) * cos(pow(M_E, smallRectX1 * -1)) * (0.005 * pow(smallRectX1, 3) + 1);
-      current_area_small2 = (b - bigRectX) * cos(pow(M_E, smallRectX2 * -1)) * (0.005 * pow(smallRectX2, 3) + 1);
-
-      if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
-        return current_area_large;
-      } else {
-        float area = quad(a, bigRectX, err, input_function_type) + quad(bigRectX, b, err, input_function_type);
-        return area;
-      }
-      break;
-
-    default:
-      printf("Invalid input_function_type\n");
-      exit(-1);
-      break;
+  // Subtração para ver se a aproximação é boa
+  if(fabs(current_area_large - (current_area_small1 + current_area_small2)) < err ) {
+    return current_area_large;
+  } else {
+    float area = quad(a, bigRectX, err, input_function_type) + quad(bigRectX, b, err, input_function_type);
+    return area;
   }
+  
+  
 }
 
-float midPoint (float a, float b) {
+float midPoint(float a, float b) {
   return (a + b)/2;
 }
