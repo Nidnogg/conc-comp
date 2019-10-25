@@ -11,39 +11,12 @@
 #include "timer.h"
 
 #define NTHREADS 2
+#define SIZERECTARRAY
 
-float function1(float x);
-float function2(float x);
-float function3(float x);
-float function4(float x);
-float function5(float x);
-float function6(float x);
-float function7(float x);
+float function(float x, int functionId);
+float midPoint(float a, float b);
 
-void barrier(int nthreads) {
-    pthread_mutex_lock(&t_mutex);
-    
-    threads_waiting+=1;
-    if(threads_waiting < NTHREADS) {
-        pthread_cond_wait(&t_cond_bar, &mutex);
-    } else {
-        threads_waiting = 0;
-        update_rects();
-        pthread_cond_broadcast(&t_cond_bar);
-    }
-    
-    pthread_mutex_unlock(&t_mutex);
-}
-
-void update_rects() {
-  for(int i = 0; i < NTHREADS; i++) {
-
-    //rects[i]->a = 
-    //rects[i]->b = 
-    //rects[i]->area
-  }
-}
-//cria a estrutura de dados para armazenar os argumentos da thread
+// Cria a estrutura de dados para armazenar os argumentos da thread
 typedef struct {
    int idThread;
    int input_function_type;
@@ -53,45 +26,60 @@ typedef struct {
   float area, a, b;
 } Rect_t;
 
-// globals
-pthread_mutex_t t_mutex;
-pthread_cond_t t_cond_bar;
+// GLOBAL VARIABLES
+pthread_mutex_t mutex;
+pthread_cond_t cond;
 
-Rect_t rects[NTHREADS];
-int threads_waiting = 0;
+// Variavel Global de Retorno das Threads
+float totalArea = 0;
 
-//funcao executada pelas threads
+// Variaveis Globais do Buffer
+Rect_t rectsBuffer[SIZERECTARRAY];
+int bufferPointerToRead = 0;
+int bufferPointerToWrite = 0;
+int elementsInBuffer = 0;
+
+
+
+// Função Executada pelas Threads
 void * compute_area (void *arg) {
   Args_t *args = (Args_t *) arg;
-  
-
+  float area, a, b;
   while(1) {
-    //flag começou
-    barrier(NTHREADS);
-    printf("thread %d começou\n", args->idThread);
+        pthread_mutex_lock(&mutex);
+        if(elementsInBuffer == 0){
+            free(arg);
+            pthread_exit(NULL);
+        }
+        else if(elementsInBuffer == SIZERECTARRAY){
+            printf("ERROR! Buffer size limit reached.\n");
+            exit(-1);
+        }
 
+        a = rectsBuffer[bufferPointerToRead]->a;
+        b = rectsBuffer[bufferPointerToRead]->b;
+        area = rectsBuffer[bufferPointerToRead]->area;
+        bufferPointerToRead = (bufferPointerToRead + 1) % SIZERECTARRAY; // "Remove" o Retangulo do Buffer
+        elementsInBuffer--;
+        pthread_mutex_unlock(&mutex);
+        //TODO -> Calcular Mini Retangulos desse Retangulo e comparar o Erro. Se for alto, adicionar os Mini Retangulos ao Buffer. Caso contrário, adicionar a área encontrada à Área Total (variavel global) e repetir o processo até não haver mais Retangulos no Buffer.
   }
-  printf("Thread %d\n", args->idThread);
- 
-  free(arg);
-  pthread_exit(NULL);
 }
 
-//main
+
 
 int main(int argc, char* argv[]) {
   pthread_t tids[NTHREADS];
 
-  Args_t *arg; //receberá os argumentos para a thread
+  Args_t *arg; //Receberá os argumentos para a thread
   float a, b; //Intervalo de integração
   float err;
   float result;
-  float current_area_large, current_area_small_sum;
   int input;
   double t_start, t_end, t_spent;
  
-  pthread_mutex_init(&t_mutex, NULL);
-  pthread_cond_init(&t_cond_bar, NULL);
+  pthread_mutex_init(&mutex, NULL);
+  pthread_cond_init(&cond, NULL);
 
   GET_TIME(t_start);
 
@@ -117,7 +105,7 @@ int main(int argc, char* argv[]) {
 
   scanf("%d", &input);
 
-  // Quits if user input is incorRect_t
+  // Exits if user input is incorrect
   if(input < 1 || input > 7) { 
     printf("Invalid input\n"); 
     exit(-1);
@@ -129,11 +117,23 @@ int main(int argc, char* argv[]) {
           exit(-1);
       }
   }
-  // Creates threads
+
+
+  // Readies Buffer With First NTHREADS Rectangles
+  elementsInBuffer = NTHREADS;
+  bufferPointerToRead = 0;
+  bufferPointerToWrite = NTHREADS;
+  for(int i = 0; i < NTHREADS; i++){
+    rectsBuffer[i]->a = a + i * (b - a) / NTHREADS;
+    rectsBuffer[i]->b = rectsBuffer[i]->a + (b - a) / NTHREADS;
+    rectsBuffer[i]->area = function(midPoint(rectsBuffer[i]->a, rectsBuffer[i]->b), input);
+  }
+
+  // Creates Threads
   for(int i = 0; i < NTHREADS; i++) {
     arg = malloc(sizeof(Args_t));
     if (arg == NULL) {
-      printf("--ERRO: malloc()\n"); exit(-1);
+      printf("Failed to malloc()\n"); exit(-1);
     }
     arg->idThread = i; 
     arg->input_function_type = input;
@@ -142,56 +142,48 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  current_area_large = INFINITY; 
-  current_area_small_sum = 0;
- /*
-  while(fabs(current_area_large - current_area_small_sum) > err ) {
-    pthread_mutex_lock(&t_mutex);
-    pthread_mutex_unlock(&t_mutex);
-  }
- */
- 
 
+  // Joins Threads
   for(int i = 0; i < NTHREADS; i++) {
     if(pthread_join(tids[i], NULL)) {
-      printf("Failed to pthread_create()\n!"); exit(-1);
+      printf("Failed to pthread_create()!\n"); exit(-1);
     }
   }
 
-  //printf("Estimated area: %f\n", result);
+  printf("Estimated area: %f\n", areaTotal);
   GET_TIME(t_end);
 
   t_spent = t_end - t_start;
   printf("Execution time: %f seconds\n", t_spent);
     
-  pthread_mutex_destroy(&t_mutex);
-  pthread_cond_destroy(&t_cond_bar);
+  pthread_mutex_destroy(&mutex);
+  pthread_cond_destroy(&cond);
   free(tids);
   printf("Main thread finished\n");
   pthread_exit(NULL);
 }
 
-float function1(float x) {
-    return (1 + x);
+
+
+float function(float x, int functionId){
+    switch(functionId){
+        case 1:
+            return (1 + x);
+        case 2:
+            return sqrt(1 - pow(x, 2));
+        case 3:
+            return sqrt(1 + pow(x, 4));
+        case 4:
+            return sin(pow(x, 2));
+        case 5:
+            return cos(pow(M_E, x * -1));
+        case 6:
+            return cos(pow(M_E, x * -1)) * x;
+        case 7:
+            return cos(pow(M_E, x * -1)) * (0.005 * pow(x, 3) + 1);
+    }
 }
-float function2(float x) {
-    return sqrt(1 - pow(x, 2));
-}
-float function3(float x) {
-    return sqrt(1 + pow(x, 4));
-}
-float function4(float x) {
-    return sin(pow(x, 2));
-}
-float function5(float x) {
-    return cos(pow(M_E, x * -1));
-}
-float function6(float x) {
-    return cos(pow(M_E, x * -1)) * x;
-}
-float function7(float x) {
-    return cos(pow(M_E, x * -1)) * (0.005 * pow(x, 3) + 1);
-}
+
 
 float midPoint(float a, float b) {
   return (a + b) /2;
