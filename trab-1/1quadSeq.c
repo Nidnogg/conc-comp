@@ -123,5 +123,5 @@ float quad(float a, float b, float err, int input_function_type) {
 }
 
 float midPoint(float a, float b) {
-  return (a + b)/2;
+  return (a + b) / 2;
 }

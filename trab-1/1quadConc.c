@@ -12,7 +12,7 @@
 
 #define NTHREADS 2
 #define SIZERECTARRAY 1024
-#define SPLITRECTANGLES 5   // Número de Retângulos que serão gerados apartir de um maior pelas Threads
+#define SPLITRECTANGLES 3   // Número de Retângulos que serão gerados apartir de um maior pelas Threads
 
 float function(float x, int functionId);
 float midPoint(float a, float b);
@@ -52,6 +52,7 @@ void * compute_area (void *arg) {
     while(elementsInBuffer > 0) {
         if(elementsInBuffer > SIZERECTARRAY) {
             printf("ERROR! Buffer size limit reached.\n");
+            pthread_mutex_unlock(&mutex);
             exit(-1);
         }
 
@@ -59,7 +60,7 @@ void * compute_area (void *arg) {
         b = rectsBuffer[bufferPointer].b;
         areaBigRect = rectsBuffer[bufferPointer].area;
 
-        bufferPointer = (bufferPointer + 1) % SIZERECTARRAY; // "Remove" o Retangulo do Buffer
+        bufferPointer = (bufferPointer - 1) % SIZERECTARRAY; // "Remove" o Retangulo do Buffer
         elementsInBuffer--;
         pthread_mutex_unlock(&mutex);
 
@@ -75,33 +76,27 @@ void * compute_area (void *arg) {
             intervalStart += intervalLength;
         }
 
+        pthread_mutex_lock(&mutex);
         if(fabs(areaBigRect - totalAreaSmallRects) > err) {
-            intervalStart = a;
-            pthread_mutex_lock(&mutex);
-            printf("tid %d criou rect\n", args->idThread);
-            for(int i = 0; i < SPLITRECTANGLES; i++) {
-              bufferPointer = (bufferPointer - 1) % SIZERECTARRAY; // Sobe o ponteiro do buffer para "empilhar" o novo retângulo
-              elementsInBuffer += 1; // Incrementa o contador de elementos no buffer
+          intervalStart = a;
+          for(int i = 0; i < SPLITRECTANGLES; i++) {
+            bufferPointer = (bufferPointer + 1) % SIZERECTARRAY; // Sobe o ponteiro do buffer para "empilhar" o novo retângulo
+            elementsInBuffer += 1; // Incrementa o contador de elementos no buffer
 
-              // Armazena no Buffer as informações sobre cada Retângulo Menor novo:
-              rectsBuffer[bufferPointer].a = intervalStart;
-              intervalStart += intervalLength;
-              rectsBuffer[bufferPointer].b = intervalStart;
-              rectsBuffer[bufferPointer].area = areaSmallRects[i];
-            }
-            pthread_mutex_unlock(&mutex);
+            // Armazena no Buffer as informações sobre cada Retângulo Menor novo:
+            rectsBuffer[bufferPointer].a = intervalStart;
+            intervalStart += intervalLength;
+            rectsBuffer[bufferPointer].b = intervalStart;
+            rectsBuffer[bufferPointer].area = areaSmallRects[i];
+          }
         } else { 
-          printf('entei no eus tid %d\n', args->idThread);
           totalArea += areaBigRect;
         }
-        pthread_mutex_lock(&mutex);
     }
-
+  pthread_mutex_unlock(&mutex);
   free(arg);
   pthread_exit(NULL);
 }
-
-
 
 int main(int argc, char* argv[]) {
   pthread_t tids[NTHREADS];
@@ -154,11 +149,11 @@ int main(int argc, char* argv[]) {
 
   // Readies Buffer With First NTHREADS Rectangles
   elementsInBuffer = NTHREADS;
-  bufferPointer = 0;
+  bufferPointer = elementsInBuffer - 1;
   for(int i = 0; i < NTHREADS; i++) {
     rectsBuffer[i].a = a + i * (b - a) / NTHREADS;
     rectsBuffer[i].b = rectsBuffer[i].a + (b - a) / NTHREADS;
-    rectsBuffer[i].area = function(midPoint(rectsBuffer[i].a, rectsBuffer[i].b), input);
+    rectsBuffer[i].area = (rectsBuffer[i].b - rectsBuffer[i].a) * function(midPoint(rectsBuffer[i].a, rectsBuffer[i].b), input);
   }
 
   // Creates Threads
@@ -186,7 +181,7 @@ int main(int argc, char* argv[]) {
   GET_TIME(t_end);
 
   t_spent = t_end - t_start;
-  printf("Execution time: %f seconds\n", t_spent);
+  printf("Execution time: %.3fs \n", t_spent);
     
   pthread_mutex_destroy(&mutex);
   pthread_cond_destroy(&cond);
@@ -226,5 +221,5 @@ float function(float x, int functionId) {
 
 
 float midPoint(float a, float b) {
-  return (a + b) /2;
+  return (a + b) / 2;
 }
