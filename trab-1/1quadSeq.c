@@ -22,7 +22,6 @@ int main(int argc, char* argv[]) {
   int input_function_type; // Tipo de função, escolhida pelo usuário
   double t_start, t_end, t_spent; // Funções para medição de tempo
  
-  GET_TIME(t_start);
 
   // Checagem dos parametros passados na linha de comando
   if(argc < 4) {
@@ -60,6 +59,7 @@ int main(int argc, char* argv[]) {
           exit(-1);
       }
   }
+  GET_TIME(t_start);
 
   // Computa recursivamente a integral
   result = quad(a, b, err, input_function_type);
@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
 
   GET_TIME(t_end);
   t_spent = t_end - t_start;
-  printf("Execution time: %.3fs\n", t_spent);
+  printf("Execution time: %.4fs\n", t_spent);
     
   return 0;
 }

@@ -10,9 +10,8 @@
 #include <math.h>
 #include "timer.h"
 
-#define NTHREADS 2
 #define SIZERECTARRAY 1024
-#define SPLITRECTANGLES 3   // Número de Retângulos que serão gerados apartir de um maior pelas Threads
+#define SPLITRECTANGLES 2   // Número de Retângulos que serão gerados apartir de um maior pelas Threads
 
 float function(float x, int functionId);
 float midPoint(float a, float b);
@@ -38,7 +37,7 @@ float err;
 Rect_t rectsBuffer[SIZERECTARRAY];
 int bufferPointer = 0;
 int elementsInBuffer = 0;
-
+int nthreads;
 
 
 // Função Executada pelas Threads
@@ -99,7 +98,6 @@ void * compute_area (void *arg) {
 }
 
 int main(int argc, char* argv[]) {
-  pthread_t tids[NTHREADS];
 
   Args_t *arg; //Receberá os argumentos para a thread
   float a, b; //Intervalo de integração
@@ -109,18 +107,19 @@ int main(int argc, char* argv[]) {
   pthread_mutex_init(&mutex, NULL);
   pthread_cond_init(&cond, NULL);
 
-  GET_TIME(t_start);
 
   // Input
-  if(argc < 4) {
-    fprintf(stderr, "Parameters: %s <start of interval(a)> <end of interval(b)> <max error(err)>  \n", argv[0]);
+  if(argc < 5) {
+    fprintf(stderr, "Parameters: %s <start of interval(a)> <end of interval(b)> <max error(err)> <nthreads(nthreads)> \n", argv[0]);
     return 1;
   }
 
   a = atof(argv[1]);
   b = atof(argv[2]);
   err = atof(argv[3]);
+  nthreads = atoi(argv[4]);
 
+  pthread_t tids[nthreads];
   
   printf("Select test function(s):\n" 
          "1) 1 + x\n"
@@ -146,18 +145,19 @@ int main(int argc, char* argv[]) {
       }
   }
 
+  GET_TIME(t_start);
 
-  // Readies Buffer With First NTHREADS Rectangles
-  elementsInBuffer = NTHREADS;
+  // Readies Buffer With First nthreads Rectangles
+  elementsInBuffer = nthreads;
   bufferPointer = elementsInBuffer - 1;
-  for(int i = 0; i < NTHREADS; i++) {
-    rectsBuffer[i].a = a + i * (b - a) / NTHREADS;
-    rectsBuffer[i].b = rectsBuffer[i].a + (b - a) / NTHREADS;
+  for(int i = 0; i < nthreads; i++) {
+    rectsBuffer[i].a = a + i * (b - a) / nthreads;
+    rectsBuffer[i].b = rectsBuffer[i].a + (b - a) / nthreads;
     rectsBuffer[i].area = (rectsBuffer[i].b - rectsBuffer[i].a) * function(midPoint(rectsBuffer[i].a, rectsBuffer[i].b), input);
   }
 
   // Creates Threads
-  for(int i = 0; i < NTHREADS; i++) {
+  for(int i = 0; i < nthreads; i++) {
     arg = malloc(sizeof(Args_t));
     if (arg == NULL) {
       printf("Failed to malloc()\n"); exit(-1);
@@ -171,7 +171,7 @@ int main(int argc, char* argv[]) {
 
 
   // Joins Threads
-  for(int i = 0; i < NTHREADS; i++) {
+  for(int i = 0; i < nthreads; i++) {
     if(pthread_join(tids[i], NULL)) {
       printf("Failed to pthread_create()!\n"); exit(-1);
     }
@@ -181,7 +181,7 @@ int main(int argc, char* argv[]) {
   GET_TIME(t_end);
 
   t_spent = t_end - t_start;
-  printf("Execution time: %.3fs \n", t_spent);
+  printf("Execution time: %.4fs\n", t_spent);
     
   pthread_mutex_destroy(&mutex);
   pthread_cond_destroy(&cond);
