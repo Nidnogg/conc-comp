@@ -5,7 +5,7 @@
 #include <time.h>
 
 #define N_PROD 1
-#define N_CONS 1
+#define N_CONS 2
 #define BUFFERSIZE 5
 
 int* buffer;
@@ -50,45 +50,51 @@ void insertBuffer(int elem, int tid) {
 
   // Waits if buffer is full
   while(count == BUFFERSIZE) {
-    //printf("Thread %d (Producer) will wait until count != BUFFERSIZE (buffer isn't full)\n", tid);
+    printf("Thread %d (Producer) will wait until count != BUFFERSIZE (buffer isn't full)\n", tid);
     pthread_cond_wait(&cond_prod, &mutex);
   }
 
-  //printf("Thread %d (Producer) will insert %d into buffer. Buffer before insertion:\n", tid, elem);
-  //printBuffer();
+  printf("Thread %d (Producer) will insert %d into buffer. Buffer before insertion:\n", tid, elem);
+  printBuffer();
 
   buffer[in] = elem;
   in = (in + 1) % BUFFERSIZE;
   count++;
 
-  //printf("Buffer after insertion:\n");
- // printBuffer(); 
+  printf("Buffer after insertion:\n");
+  printBuffer(); 
 
   // After insertion, unlock and signal to all consumers
   pthread_mutex_unlock(&mutex);
   pthread_cond_signal(&cond_cons);
 }
 
-int removeBuffer(int tid) {
+int * removeBuffer(int tid) {
   pthread_mutex_lock(&mutex);
-  int aux = 0; 
+  int *aux; 
+  aux = malloc(sizeof(int) * BUFFERSIZE); 
+  if(!aux) return -1;
 
-  // If buffer is empty, waits in consumer queue
-  while(count == 0) { 
-    //printf("Thread %d (Consumer) will wait until count != 0 (buffer isn't empty)\n", tid);
+  // If buffer is not full, waits in consumer queue
+  while(count != 5) { 
+    printf("Thread %d (Consumer) will wait until count != 0 (buffer isn't empty)\n", tid);
     pthread_cond_wait(&cond_cons, &mutex);
   }
 
-  //printf("Thread %d (Consumer) will remove %d from buffer. Buffer before removal:\n", tid, buffer[out]);
-  //printBuffer();
+  printf("Thread %d (Consumer) will remove %d from buffer. Buffer before removal:\n", tid, buffer[out]);
+  printBuffer();
 
-  aux = buffer[out];
-  buffer[out] = 0;
-  out = (out + 1) % BUFFERSIZE;
-  count--;
+  for(int i = 0; i < BUFFERSIZE; i++) {
 
-  //printf("Buffer after removal:\n");
-  //printBuffer(); 
+    aux[i] = buffer[out];
+    buffer[out] = 0;
+    out = (out + 1) % BUFFERSIZE;
+    count--;
+
+  }
+
+  printf("Buffer after removal:\n");
+  printBuffer(); 
 
   // After consumption, unlock and signal to all producers
   pthread_mutex_unlock(&mutex);
@@ -113,17 +119,21 @@ void * prod(void *arg) {
 
 void * cons(void *arg) {
   int tid = *(int *) arg;
-  int removed_elem;
+  int *removed_elems;
+  removed_elems = malloc(sizeof(int) * BUFFERSIZE);
+  if(!removed_elems) return -1;
 
   while(1) {
-    removed_elem = removeBuffer(tid);
-    if(isPrime(removed_elem)) {
-      printf("%d (prime)\n", removed_elem);
-    } else {
-      printf("%d\n", removed_elem); 
-    }
+    removed_elems = removeBuffer(tid);
+    for(int i = 0; i < BUFFERSIZE; i++) {
+      if(isPrime(removed_elems[i])) {
+        printf("%d (prime)\n", removed_elems[i]);
+      } else {
+        printf("%d\n", removed_elems[i]); 
+      }
 
-    if(removed_elem == 75025) break;
+      if(removed_elems[i] == 75025) break;
+    }
   }
 
   pthread_exit(NULL);
