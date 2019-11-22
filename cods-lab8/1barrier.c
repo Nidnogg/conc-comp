@@ -4,7 +4,7 @@
 
 #define NTHREADS 5
 #define PASSOS  5
-//my bois dem globals...
+
 int thread_counter = 0;
 pthread_mutex_t mutex;
 pthread_cond_t cond_bar;
@@ -22,6 +22,7 @@ void barrier(int nthreads) {
     
     pthread_mutex_unlock(&mutex);
 }
+
 void * A (void *arg) {
     int tid = * (int *) arg, i;
     int cont = 0, boba1, boba2;
@@ -30,7 +31,7 @@ void * A (void *arg) {
         cont++;
         printf("Thread %d: cont=%d, passo=%d\n", tid, cont, i);
         //sincronizacao condicional
-        //barrier(NTHREADS);
+        barrier(NTHREADS);
         /*faz alguma coisa para gastar tempo...*/
         boba1=100; 
         boba2=-100; 
