@@ -5,7 +5,6 @@
 
 #define NTHREADS_READ 2
 #define NTHREADS_WRITE 2
-#define NTHREADS NTHREADS_READ + NTHREADS_WRITE
 
 typedef struct {
     int tid;
@@ -76,8 +75,6 @@ int bobo (int id, int baba) {
     return baba;
 }
 
-
-
 void startRead(int tid) {
     pthread_mutex_lock(&mutex);
 
@@ -107,25 +104,6 @@ void endRead(int tid) {
 
 void startWrite(int tid) {
     pthread_mutex_lock(&mutex);
-    if(tid == 0) pthread_cond_wait(&cond_write_queue, &mutex);
-    /*
-    //if(queue is empty) {
-        printf("queueing thread %d because queue is empty. SIGNALING WRITE QUEUE.\n", tid);
-        enqueue(&head, tid);
-        pthread_cond_signal(&cond_write_queue);
-    } else if(dequeue(&head) == tid) {
-            printf("thread %d wil wait because it was the last dequeued thread.\n", tid);
-            pthread_cond_wait(&cond_write_queue, &mutex);
-            enqueue(&head, tid);
-    } else {
-        printf("thread %d will signal write queue and be queued.\n", tid);
-
-        pthread_cond_signal(&cond_write_queue);
-        enqueue(&head, tid);
-    }    
-     */
-
-
 
     if(reading > 0 || writing > 0 || waitingToRead > 0) {
         waitingToWrite++;
@@ -174,17 +152,15 @@ void * reader (void *arg) {
 void * writer (void *arg) {
     int tid = * (int *) arg;
     while(1) {
+        startWrite(tid); //!! tranca outros escritores/leitores
 
-        if(tid == 1) {
-            startWrite(tid); //!! tranca outros escritores/leitores
+        args.count++; // protegido em startWrite
+        args.tid = tid;
+        printf("Thread Escritora de ID %d modificou o struct para: id = %d e count = %d\n", tid, tid, args.count);
 
-            args.count++; // protegido em startWrite
-            args.tid = tid;
-            printf("Thread Escritora de ID %d modificou o struct para: id = %d e count = %d\n", tid, tid, args.count);
-
-            endWrite(tid);
-            bobo(tid, args.count);
-        }
+        endWrite(tid);
+        bobo(tid, args.count);
+    
     }
     pthread_exit(NULL);
 }
@@ -201,7 +177,7 @@ int main(int agrc, char* argv[]) {
     pthread_cond_init(&cond_write_queue, NULL);
 
     int* tid;
-    tids = malloc(sizeof(pthread_t) * (NTHREADS)); if(!tids) exit(-1);
+    tids = malloc(sizeof(pthread_t) * (NTHREADS_READ + NTHREADS_WRITE)); if(!tids) exit(-1);
     
     args.count = 0;
 
