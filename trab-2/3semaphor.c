@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <semaphore.h>
 
 #define NTHREADS_READ 2
 #define NTHREADS_WRITE 2
@@ -12,78 +13,11 @@ typedef struct {
     int count;
 } t_args;
 
-// A linked list (LL) node to store a queue entry 
-struct QNode { 
-    int key; 
-    struct QNode* next; 
-}; 
-  
-// The queue, front stores the front node of LL and rear stores the 
-// last node of LL 
-struct Queue { 
-    struct QNode *front, *rear; 
-}; 
-  
-// A utility function to create a new linked list node. 
-struct QNode* newNode(int k) 
-{ 
-    struct QNode* temp = (struct QNode*)malloc(sizeof(struct QNode)); 
-    temp->key = k; 
-    temp->next = NULL; 
-    return temp; 
-} 
-  
-// A utility function to create an empty queue 
-struct Queue* createQueue() 
-{ 
-    struct Queue* q = (struct Queue*)malloc(sizeof(struct Queue)); 
-    q->front = q->rear = NULL; 
-    return q; 
-} 
-  
-// The function to add a key k to q 
-void enQueue(struct Queue* q, int k) 
-{ 
-    // Create a new LL node 
-    struct QNode* temp = newNode(k); 
-  
-    // If queue is empty, then new node is front and rear both 
-    if (q->rear == NULL) { 
-        q->front = q->rear = temp; 
-        return; 
-    } 
-  
-    // Add the new node at the end of queue and change rear 
-    q->rear->next = temp; 
-    q->rear = temp; 
-} 
-  
-// Function to remove a key from given queue q 
-struct QNode* deQueue(struct Queue* q) 
-{ 
-    // If queue is empty, return NULL. 
-    if (q->front == NULL) 
-        return NULL; 
-  
-    // Store previous front and move front one node ahead 
-    struct QNode* temp = q->front; 
-    free(temp); 
-  
-    q->front = q->front->next; 
-  
-    // If front becomes NULL, then change rear also as NULL 
-    if (q->front == NULL) 
-        q->rear = NULL; 
-    return temp; 
-} 
-
 // Global variables 
-int reading = 0, writing = 0, waitingToWrite = 0, waitingToRead = 0;
-struct Queue* writerQueue; 
-int threadCount = 0;
-
-pthread_mutex_t mutex, writeQueueMutex;
-pthread_cond_t cond_read, cond_write, cond_write_barrier;
+int reading = 0, writing = 0, waitingToWrite = 0, waitingToRead = 0, writeQueue = 0;
+pthread_mutex_t mutex;
+sem_t write_queue;
+pthread_cond_t cond_read, cond_write, cond_write_queue;
 t_args args;
 
 int bobo (int id, int baba) {
@@ -92,18 +26,16 @@ int bobo (int id, int baba) {
     return baba;
 }
 
-
-
 void startRead(int tid) {
     pthread_mutex_lock(&mutex);
 
     if(writing > 0 || waitingToWrite > waitingToRead) {
         waitingToRead++;
-        //printf("Thread Leitora de ID %d irá se bloquear esperando writing > 0 (writing == %d) (waitingToRead = %d, waitingToWrite = %d)\n", tid, writing, waitingToRead, waitingToWrite);
+        printf("Thread Leitora de ID %d irá se bloquear esperando writing > 0 (writing == %d) (waitingToRead = %d, waitingToWrite = %d)\n", tid, writing, waitingToRead, waitingToWrite);
         pthread_cond_wait(&cond_read, &mutex);
         waitingToRead--;
     }
-   // printf("Thread Leitora de ID %d segue porque writing == %d\n", tid, writing);
+    printf("Thread Leitora de ID %d segue porque writing == %d\n", tid, writing);
     reading++;
 
     pthread_mutex_unlock(&mutex);
@@ -122,8 +54,13 @@ void endRead(int tid) {
 }
 
 void startWrite(int tid) {
+
+    
     pthread_mutex_lock(&mutex);
 
+    //writeQueue = (writeQueue + 1) % NTHREADS_WRITE;
+    //if(writeQueue == tid) pthread_cond_wait(&cond_write_queue, &mutex);
+    printf("PIN_TID %d: writeQueue %d\n", tid, writeQueue);
 
     if(reading > 0 || writing > 0 || waitingToRead > waitingToWrite) {
         waitingToWrite++;
@@ -146,6 +83,8 @@ void endWrite(int tid) {
 
     if(waitingToWrite) pthread_cond_signal(&cond_write);
     if(waitingToRead) pthread_cond_broadcast(&cond_read);
+    //if( !waitingToWrite || waitingToRead) pthread_cond_signal(&cond_read);
+
 
     pthread_mutex_unlock(&mutex);
 }
@@ -173,9 +112,9 @@ void * reader (void *arg) {
 
 void * writer (void *arg) {
     int tid = * (int *) arg;
+
     while(1) {
         startWrite(tid); //!! tranca outros escritores/leitores
-
         args.count++; // protegido em startWrite
         args.tid = tid;
         printf("Thread Escritora de ID %d modificou o struct para: id = %d e count = %d\n", tid, tid, args.count);
@@ -192,13 +131,11 @@ int main(int agrc, char* argv[]) {
     pthread_t *tids;
 
     pthread_mutex_init(&mutex, NULL);
-    pthread_mutex_init(&writeQueueMutex, NULL);
-
     pthread_cond_init(&cond_read, NULL);
     pthread_cond_init(&cond_write, NULL);
-    pthread_cond_init(&cond_write_barrier, NULL);
+    pthread_cond_init(&cond_write_queue, NULL);
+    sem_init(&write_queue, 0, 1);
 
-    writerQueue = createQueue();
 
     int* tid;
     tids = malloc(sizeof(pthread_t) * (NTHREADS)); if(!tids) exit(-1);
@@ -214,6 +151,7 @@ int main(int agrc, char* argv[]) {
     for(int i = 0; i < NTHREADS_WRITE; i++) {
         tid = malloc(sizeof(int));  if(!tid) exit(-1);
         *tid = i;
+        printf("creating writer thread %d\n", *tid);
         pthread_create(&tids[i], NULL, writer, (void * ) tid);
     }
 
