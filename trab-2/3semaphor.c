@@ -29,7 +29,7 @@ int bobo (int id, int baba) {
 void startRead(int tid) {
     pthread_mutex_lock(&mutex);
 
-    if(writing > 0 || waitingToWrite > waitingToRead) {
+    if(writing > 0 || waitingToWrite > 0) {
         waitingToRead++;
         printf("Thread Leitora de ID %d irá se bloquear esperando writing > 0 (writing == %d) (waitingToRead = %d, waitingToWrite = %d)\n", tid, writing, waitingToRead, waitingToWrite);
         pthread_cond_wait(&cond_read, &mutex);
@@ -62,7 +62,7 @@ void startWrite(int tid) {
     //if(writeQueue == tid) pthread_cond_wait(&cond_write_queue, &mutex);
     printf("PIN_TID %d: writeQueue %d\n", tid, writeQueue);
 
-    if(reading > 0 || writing > 0 || waitingToRead > waitingToWrite) {
+    if(reading > 0 || writing > 0 || waitingToRead > 0) {
         waitingToWrite++;
         printf("Thread Escritora de ID %d irá esperar cond_write (pois reading (%d) > 0 ou writing (%d) > 0 (waitingToRead = %d, waitingToWrite = %d) )\n", tid, reading, writing, waitingToRead, waitingToWrite);
         pthread_cond_wait(&cond_write, &mutex);
