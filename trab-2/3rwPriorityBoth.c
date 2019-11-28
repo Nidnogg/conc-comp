@@ -18,7 +18,7 @@ typedef struct node {
 } node_t;
 
 // Global variables 
-int reading = 0, writing = 0, waitingToWrite = 0, waitingToRead = 0;
+int reading = 0, writing = 0, waitingToWrite = 0, waitingToRead = 0, writeTurn = 0;
 int threadCount = 0;
 
 pthread_mutex_t mutex, writeQueueMutex;
@@ -77,10 +77,10 @@ int bobo (int id, int baba) {
 
 void startRead(int tid) {
     pthread_mutex_lock(&mutex);
-
-    if(writing > 0 || waitingToWrite > 0) {
+    writeTurn = -1;
+    while(writing > 0 || (waitingToWrite > 0 && writeTurn > 0)) {
         waitingToRead++;
-        printf("Thread Leitora de ID %d irá se bloquear esperando writing > 0 (writing == %d) (waitingToRead = %d, waitingToWrite = %d)\n", tid, writing, waitingToRead, waitingToWrite);
+        printf("WRITE TURN == %d Thread Leitora de ID %d irá se bloquear esperando writing > 0 (writing == %d) (waitingToRead = %d, waitingToWrite = %d)\n", writeTurn, tid, writing, waitingToRead, waitingToWrite);
         pthread_cond_wait(&cond_read, &mutex);
         waitingToRead--;
     }
@@ -99,15 +99,19 @@ void endRead(int tid) {
         pthread_cond_signal(&cond_write);
     }
 
+    writeTurn = 1;
     pthread_mutex_unlock(&mutex);
 }
 
 void startWrite(int tid) {
     pthread_mutex_lock(&mutex);
 
-    if(reading > 0 || writing > 0 || waitingToRead > 0) {
+    // se writeTurn turno de escrita for negativo
+    //, isto é, nao for a vez da escrita bloqueia tambem!
+   // while(reading > 0 || writing > 0 || waitingToRead > 0 && writeTurn < 0) {
+    while(reading > 0 || writing > 0 || (waitingToRead > 0 && writeTurn < 0 ))  {
         waitingToWrite++;
-        printf("Thread Escritora de ID %d irá esperar cond_write (pois reading (%d) > 0 ou writing (%d) > 0 (waitingToRead = %d, waitingToWrite = %d) )\n", tid, reading, writing, waitingToRead, waitingToWrite);
+        printf("WRITE TURN == %d Thread Escritora de ID %d irá esperar cond_write (pois reading (%d) > 0 ou writing (%d) > 0 (waitingToRead = %d, waitingToWrite = %d) )\n", writeTurn, tid, reading, writing, waitingToRead, waitingToWrite);
         pthread_cond_wait(&cond_write, &mutex);
         waitingToWrite--;
     }
@@ -146,6 +150,7 @@ void * reader (void *arg) {
         bobo(readId, readCount);
 
     }
+
     pthread_exit(NULL);
 }
 
@@ -176,8 +181,10 @@ int main(int agrc, char* argv[]) {
     pthread_cond_init(&cond_write, NULL);
     pthread_cond_init(&cond_write_queue, NULL);
 
+    int NTHREADS = NTHREADS_READ + NTHREADS_WRITE;
+
     int* tid;
-    tids = malloc(sizeof(pthread_t) * (NTHREADS_READ + NTHREADS_WRITE)); if(!tids) exit(-1);
+    tids = malloc(sizeof(pthread_t) * (NTHREADS)); if(!tids) exit(-1);
     
     args.count = 0;
 
@@ -187,14 +194,13 @@ int main(int agrc, char* argv[]) {
         pthread_create(&tids[i], NULL, reader, (void * ) tid);
     }
 
-    for(int i = 0; i < NTHREADS_WRITE; i++) {
+    for(int i = NTHREADS_READ; i < NTHREADS;  i++) {
         tid = malloc(sizeof(int));  if(!tid) exit(-1);
         *tid = i;
         pthread_create(&tids[i], NULL, writer, (void * ) tid);
     }
 
-    free(tids);
-    free(tid); // NAS THREADS
+
     pthread_exit(NULL);
     
 }
