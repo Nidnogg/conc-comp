@@ -16,8 +16,8 @@ int reading = 0, writing = 0, waitingToWrite = 0, waitingToRead = 0, writeTurn =
 int nReads, nWrites, NTHREADS_READ, NTHREADS_WRITE;
 char *logFileName;
 
-pthread_mutex_t mutex;
-pthread_cond_t cond_read, cond_write;
+pthread_mutex_t mutex, writeQueueMutex;
+pthread_cond_t cond_read, cond_write, cond_write_queue;
 t_args args;
 
 int bobo (int id, int baba) {
@@ -39,7 +39,7 @@ char * concat(const char *s1, const char *s2){
 }
 
 char * generateFileName(int tid) {
-    char fileName0[30] = "./logThreadReads/tid";
+    char fileName0[30] = "./threadReads/tid";
     char fileName1[10]; 
     sprintf(fileName1, "%d.txt", tid);   
 
@@ -69,7 +69,7 @@ void startRead(int tid) {
     pthread_mutex_unlock(&mutex);
 }
 
-void endRead(int tid) {
+void endRead(int tid, int nReadsPerThread) {
     pthread_mutex_lock(&mutex);
 
     reading--;
@@ -79,7 +79,7 @@ void endRead(int tid) {
     }
 
     writeTurn = 1;
-    nReads--;
+    nReadsPerThread--;
     pthread_mutex_unlock(&mutex);
 }
 
@@ -100,7 +100,7 @@ void startWrite(int tid) {
     pthread_mutex_unlock(&mutex);
 }
 
-void endWrite(int tid) {
+void endWrite(int tid, int nWritesPerThread) {
     pthread_mutex_lock(&mutex);
 
     writing--;
@@ -109,19 +109,16 @@ void endWrite(int tid) {
 
     if(waitingToWrite) pthread_cond_signal(&cond_write);
     if(waitingToRead) pthread_cond_broadcast(&cond_read);
-    //pthread_cond_signal(&cond_write);
-    //pthread_cond_broadcast(&cond_read);
 
-    nWrites--;
+    nWritesPerThread--;
     pthread_mutex_unlock(&mutex);
 }
 
 void * reader (void *arg) {
     int tid = * (int *) arg;
-    int readItem;
-    FILE *filePointer;
+    int readItem, nReadsPerThread;
+    FILE *filePointer; //(FILE *)malloc(sizeof(FILE *)); if(!filePointer) { printf("Failed to malloc!\n"); exit(-1); }; 
     char *filePath = generateFileName(tid);
-
     printf("actual file path = %s\n", filePath);
     
     filePointer = fopen(filePath, "w");
@@ -129,35 +126,43 @@ void * reader (void *arg) {
         printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
     }
 
-    while(nReads > 0) {
+    pthread_mutex_lock(&mutex);
+    nReadsPerThread = nReads/NTHREADS_READ;
+    pthread_mutex_unlock(&mutex);
+    
+    while(nReadsPerThread > 0) {
         startRead(tid);
         
         readItem = args.sharedVar;
-       // fprintf(filePointer, "Thread Leitora de ID %d leu: sharedVar = %d\n", tid, readItem);
-        printf("Thread Leitora de ID %d leu: sharedVar = %d\n", tid, readItem);
-
+        fprintf(filePointer, "Thread Leitora de ID %d leu: sharedVar = %d\n", tid, readItem);
         
-        endRead(tid);
+        endRead(tid, nReadsPerThread);
         bobo(tid, readItem);
+
     }
     
     free(arg);
     fclose(filePointer);
-
+    free(filePointer);
     pthread_exit(NULL);
 }
 
 void * writer (void *arg) {
     int tid = * (int *) arg;
+    int nWritesPerThread;
+
+    pthread_mutex_lock(&mutex);
+    nWritesPerThread = nWrites/NTHREADS_READ;
+    pthread_mutex_unlock(&mutex);
     
-    while(nWrites > 0) {
+    while(nWritesPerThread > 0) {
         startWrite(tid); //!! tranca outros escritores/leitores
         
         // Contexto Protegido em startWrite
         args.sharedVar = tid;
         printf("Thread Escritora de ID %d modificou o struct para: sharedVar = %d\n", tid, tid);
 
-        endWrite(tid);
+        endWrite(tid, nWritesPerThread);
         bobo(tid, tid);
     
     }
@@ -171,9 +176,11 @@ int main(int argc, char *argv[]) {
 
     pthread_t *tids;
     pthread_mutex_init(&mutex, NULL);
+    pthread_mutex_init(&writeQueueMutex, NULL);
 
     pthread_cond_init(&cond_read, NULL);
     pthread_cond_init(&cond_write, NULL);
+    pthread_cond_init(&cond_write_queue, NULL);
 
     int *tid;
     
