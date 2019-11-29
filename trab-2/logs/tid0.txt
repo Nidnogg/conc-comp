@@ -1,5 +1,4 @@
-Thread Leitora de ID 0 leu: sharedVar = 3
-Thread Leitora de ID 0 leu: sharedVar = 3
-Thread Leitora de ID 0 leu: sharedVar = 2
-Thread Leitora de ID 0 leu: sharedVar = 3
-Thread Leitora de ID 0 leu: sharedVar = 3
+tRead(0, 2)
+tRead(0, 2)
+tRead(0, 3)
+tRead(0, 2)

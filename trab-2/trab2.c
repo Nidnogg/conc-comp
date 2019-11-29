@@ -58,12 +58,13 @@ int startRead(int tid, FILE *mainFilePointer) {
             return 1;
         }
         waitingToRead++;
-        fprintf(mainFilePointer, "Thread Leitora de ID %d irá se bloquear esperando writing > 0 (writing == %d) (waitingToRead = %d, waitingToWrite = %d)\n", tid, writing, waitingToRead, waitingToWrite);
+        fprintf(stdout, "Thread Leitora de ID %d irá se bloquear esperando writing > 0 (writing == %d) (waitingToRead = %d), (writeTurn = %d)\n", tid, writing, waitingToRead, writeTurn);
+        fprintf(mainFilePointer, "tReaderBlocked(%d, %d, %d, %d)\n", tid, writing, waitingToWrite, writeTurn);
         pthread_cond_wait(&cond_read, &mutex);
         waitingToRead--;
     }
-
-    fprintf(mainFilePointer, "Thread Leitora de ID %d segue porque writing == %d\n nReads/Writes = %d/%d", tid, writing, nReads, nWrites);
+    fprintf(stdout, "Thread Leitora de ID %d segue porque writing == %d\n", tid, writing);
+    fprintf(mainFilePointer, "tReaderUnblocked(%d, %d)\n", tid, writing);
     reading++;
     nReads--;
 
@@ -76,7 +77,8 @@ void endRead(int tid,  FILE *mainFilePointer) {
 
     reading--;
     if(reading == 0) {
-        fprintf(mainFilePointer, "Thread Leitora de ID %d irá sinalizar cond_write (pois reading == %d) e nReads/Writes = %d/%d\n", tid, reading, nReads, nWrites);
+        fprintf(stdout, "Thread Leitora de ID %d irá sinalizar cond_write (pois reading == %d)\n", tid, reading);
+        fprintf(mainFilePointer, "tReaderSignalled(%d, %d)\n", tid, reading);
         pthread_cond_signal(&cond_write);
     }
 
@@ -102,11 +104,14 @@ int startWrite(int tid,  FILE *mainFilePointer) {
         }
   
         waitingToWrite++;
-        fprintf(mainFilePointer, "Thread Escritora de ID %d irá esperar cond_write (pois reading (%d) > 0 ou writing (%d) > 0 (waitingToRead = %d, waitingToWrite = %d) )\n", tid, reading, writing, waitingToRead, waitingToWrite);
+        fprintf(stdout, "Thread Escritora de ID %d irá esperar cond_write (pois reading (%d) > 0 ou writing (%d) > 0 (waitingToRead = %d, writeTurn = %d) )\n", tid, reading, writing, waitingToRead, writeTurn);
+        fprintf(mainFilePointer, "tWriterBlocked(%d, %d, %d, %d, %d)\n", tid, reading, writing, waitingToRead, writeTurn);
         pthread_cond_wait(&cond_write, &mutex);
         waitingToWrite--;
     }
 
+    fprintf(stdout, "Thread Escritora de ID %d desbloqueada pois reading = %d ou writing = %d ou (waitingToRead = %d writeTurn = %d))\n", tid, reading, writing, waitingToRead, writeTurn);
+    fprintf(mainFilePointer, "tWriterUnblocked(%d, %d, %d, %d, %d)\n", tid, reading, writing, waitingToRead, writeTurn);
     writing++;
     nWrites--;
 
@@ -118,7 +123,8 @@ void endWrite(int tid,  FILE *mainFilePointer) {
     pthread_mutex_lock(&mutex);
     
     writing--;
-    fprintf(mainFilePointer, "Thread Escritora de ID %d irá sinalizar cond_write e broacastear cond_read e nReads/Writes = %d/%d\n", tid, nReads, nWrites);
+    fprintf(stdout, "Thread Escritora de ID %d irá sinalizar cond_write e broacastear cond_read\n", tid);
+    fprintf(mainFilePointer, "tWriterSignalledBroadcasted(%d)\n", tid);
 
     if(waitingToWrite) pthread_cond_signal(&cond_write);
     if(waitingToRead) pthread_cond_broadcast(&cond_read);
@@ -151,8 +157,8 @@ void * reader (void *arg) {
         }
 
         readItem = sharedVar;
-        fprintf(tidFilePointer, "Thread Leitora de ID %d leu: sharedVar = %d\n", tid, readItem);
-        fprintf(mainFilePointer, "Thread Leitora de ID %d leu: sharedVar = %d\n", tid, readItem);
+        fprintf(tidFilePointer, "tRead(%d, %d)\n", tid, readItem);
+        fprintf(mainFilePointer, "tRead(%d, %d)\n", tid, readItem);
 
         endRead(tid, mainFilePointer);
         sleep(1);
@@ -183,7 +189,7 @@ void * writer (void *arg) {
 
         // Contexto Protegido em startWrite
         sharedVar = tid;
-        fprintf(mainFilePointer, "Thread Escritora de ID %d escreveu sharedVar = %d\n", tid, sharedVar);
+        fprintf(mainFilePointer, "tWrote(%d, %d)\n", tid, sharedVar);
 
         endWrite(tid, mainFilePointer);
         sleep(1);

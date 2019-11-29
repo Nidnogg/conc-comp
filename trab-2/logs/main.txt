@@ -1,49 +1,57 @@
-Thread Leitora de ID 1 segue porque writing == 0
- nReads/Writes = 8/8Thread Leitora de ID 1 leu: sharedVar = 3
-Thread Leitora de ID 1 irá sinalizar cond_write (pois reading == 0) e nReads/Writes = 7/8
-Thread Leitora de ID 1 segue porque writing == 0
- nReads/Writes = 7/8Thread Leitora de ID 1 leu: sharedVar = 3
-Thread Leitora de ID 1 irá sinalizar cond_write (pois reading == 0) e nReads/Writes = 6/8
-Thread Leitora de ID 1 irá se bloquear esperando writing > 0 (writing == 1) (waitingToRead = 1, waitingToWrite = 1)
-Thread Leitora de ID 1 segue porque writing == 0
- nReads/Writes = 4/5Thread Leitora de ID 1 leu: sharedVar = 2
-Thread Leitora de ID 1 irá sinalizar cond_write (pois reading == 0) e nReads/Writes = 3/5
-Thread Leitora de ID 1 segue porque writing == 0
- nReads/Writes = 3/4Thread Leitora de ID 1 leu: sharedVar = 3
-Thread Leitora de ID 1 irá sinalizar cond_write (pois reading == 0) e nReads/Writes = 1/4
-Thread Escritora de ID 2 escreveu sharedVar = 2
-Thread Escritora de ID 2 irá sinalizar cond_write e broacastear cond_read e nReads/Writes = 9/9
-Thread Escritora de ID 2 escreveu sharedVar = 2
-Thread Escritora de ID 2 irá sinalizar cond_write e broacastear cond_read e nReads/Writes = 5/6
-Thread Escritora de ID 2 escreveu sharedVar = 2
-Thread Escritora de ID 2 irá sinalizar cond_write e broacastear cond_read e nReads/Writes = 4/5
-Thread Escritora de ID 2 irá esperar cond_write (pois reading (1) > 0 ou writing (0) > 0 (waitingToRead = 0, waitingToWrite = 2) )
-Thread Escritora de ID 2 escreveu sharedVar = 2
-Thread Escritora de ID 2 irá sinalizar cond_write e broacastear cond_read e nReads/Writes = 1/3
-Thread Escritora de ID 2 escreveu sharedVar = 2
-Thread Escritora de ID 2 irá sinalizar cond_write e broacastear cond_read e nReads/Writes = 0/0
-Thread Leitora de ID 0 segue porque writing == 0
- nReads/Writes = 9/8Thread Leitora de ID 0 leu: sharedVar = 3
-Thread Leitora de ID 0 segue porque writing == 0
- nReads/Writes = 6/8Thread Leitora de ID 0 leu: sharedVar = 3
-Thread Leitora de ID 0 irá sinalizar cond_write (pois reading == 0) e nReads/Writes = 5/8
-Thread Leitora de ID 0 segue porque writing == 0
- nReads/Writes = 5/6Thread Leitora de ID 0 leu: sharedVar = 2
-Thread Leitora de ID 0 irá sinalizar cond_write (pois reading == 0) e nReads/Writes = 4/6
-Thread Leitora de ID 0 segue porque writing == 0
- nReads/Writes = 2/4Thread Leitora de ID 0 leu: sharedVar = 3
-Thread Leitora de ID 0 segue porque writing == 0
- nReads/Writes = 1/1Thread Leitora de ID 0 leu: sharedVar = 3
-Thread Leitora de ID 0 irá sinalizar cond_write (pois reading == 0) e nReads/Writes = 0/1
-Thread Escritora de ID 3 escreveu sharedVar = 3
-Thread Escritora de ID 3 irá sinalizar cond_write e broacastear cond_read e nReads/Writes = 9/8
-Thread Escritora de ID 3 escreveu sharedVar = 3
-Thread Escritora de ID 3 irá sinalizar cond_write e broacastear cond_read e nReads/Writes = 5/7
-Thread Escritora de ID 3 irá esperar cond_write (pois reading (0) > 0 ou writing (1) > 0 (waitingToRead = 0, waitingToWrite = 1) )
-Thread Escritora de ID 3 escreveu sharedVar = 3
-Thread Escritora de ID 3 irá sinalizar cond_write e broacastear cond_read e nReads/Writes = 3/4
-Thread Escritora de ID 3 irá esperar cond_write (pois reading (1) > 0 ou writing (0) > 0 (waitingToRead = 0, waitingToWrite = 1) )
-Thread Escritora de ID 3 escreveu sharedVar = 3
-Thread Escritora de ID 3 irá sinalizar cond_write e broacastear cond_read e nReads/Writes = 1/2
-Thread Escritora de ID 3 escreveu sharedVar = 3
-Thread Escritora de ID 3 irá sinalizar cond_write e broacastear cond_read e nReads/Writes = 1/1
+tReaderUnblocked(0, 0)
+tRead(0, 2)
+tReaderSignalled(0, 0)
+tReaderUnblocked(0, 0)
+tRead(0, 2)
+tReaderSignalled(0, 0)
+tReaderUnblocked(0, 0)
+tRead(0, 3)
+tReaderSignalled(0, 0)
+tReaderUnblocked(0, 0)
+tRead(0, 2)
+tReaderSignalled(0, 0)
+tReaderUnblocked(1, 0)
+tRead(1, 2)
+tReaderUnblocked(1, 0)
+tRead(1, 3)
+tReaderSignalled(1, 0)
+tReaderUnblocked(1, 0)
+tRead(1, 3)
+tReaderSignalled(1, 0)
+tReaderUnblocked(1, 0)
+tRead(1, 3)
+tReaderSignalled(1, 0)
+tReaderUnblocked(1, 0)
+tRead(1, 3)
+tReaderSignalled(1, 0)
+tWriterBlocked(3, 2, 0, 0, -1)
+tWriterUnblocked(3, 0, 0, 0, 1)
+tWrote(3, 3)
+tWriterSignalledBroadcasted(3)
+tWriterUnblocked(3, 0, 0, 0, 1)
+tWrote(3, 3)
+tWriterSignalledBroadcasted(3)
+tWriterUnblocked(3, 0, 0, 0, 1)
+tWrote(3, 3)
+tWriterSignalledBroadcasted(3)
+tWriterUnblocked(3, 0, 0, 0, 1)
+tWrote(3, 3)
+tWriterSignalledBroadcasted(3)
+tWriterUnblocked(3, 0, 0, 0, 1)
+tWrote(3, 3)
+tWriterSignalledBroadcasted(3)
+tWriterUnblocked(2, 0, 0, 0, 0)
+tWrote(2, 2)
+tWriterSignalledBroadcasted(2)
+tWriterUnblocked(2, 0, 0, 0, 1)
+tWrote(2, 2)
+tWriterSignalledBroadcasted(2)
+tWriterUnblocked(2, 0, 0, 0, 1)
+tWrote(2, 2)
+tWriterSignalledBroadcasted(2)
+tWriterUnblocked(2, 0, 0, 0, 1)
+tWrote(2, 2)
+tWriterSignalledBroadcasted(2)
+tWriterUnblocked(2, 0, 0, 0, 1)
+tWrote(2, 2)
+tWriterSignalledBroadcasted(2)
