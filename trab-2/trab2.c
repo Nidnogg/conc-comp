@@ -3,14 +3,11 @@
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
-
-typedef struct {
-    int tid;
-    int sharedVar;  
-} t_args;
+#include <unistd.h>
 
 // General global variables 
 int reading = 0, writing = 0, waitingToWrite = 0, waitingToRead = 0, writeTurn = 0;
+int sharedVar;  
 
 // Input global variables
 int nReads, nWrites, NTHREADS_READ, NTHREADS_WRITE;
@@ -18,13 +15,6 @@ char *logFileName;
 
 pthread_mutex_t mutex;
 pthread_cond_t cond_read, cond_write;
-t_args args;
-
-int bobo (int id, int baba) {
-    for(int i = id * 10000000; i > 0; i--) 
-        baba = baba + i;
-    return baba;
-}
 
 char * concat(const char *s1, const char *s2){
     const size_t len1 = strlen(s1);
@@ -79,6 +69,7 @@ void endRead(int tid) {
     }
 
     writeTurn = 1;
+    
     nReads--;
     pthread_mutex_unlock(&mutex);
 }
@@ -116,25 +107,24 @@ void endWrite(int tid) {
 void * reader (void *arg) {
     int tid = * (int *) arg;
     int readItem;
-    FILE *filePointer;
-    char *filePath = generateFileName(tid);
 
-    printf("actual file path = %s\n", filePath);
+    char *filePath = generateFileName(tid);
+    FILE *filePointer;
     
     filePointer = fopen(filePath, "w");
     if(!filePointer) {
         printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
     }
 
-    while(1) {
+    while(nReads > 0) {
         startRead(tid);
 
-        readItem = args.sharedVar;
-       // fprintf(filePointer, "Thread Leitora de ID %d leu: sharedVar = %d\n", tid, readItem);
-        printf("Thread Leitora de ID %d leu: sharedVar = %d\n", tid, readItem);
-        
+        readItem = sharedVar;
+        fprintf(filePointer, "Thread Leitora de ID %d leu: sharedVar = %d\n", tid, readItem);
+      
         endRead(tid);
-        bobo(tid, tid);
+        sleep(0.5);
+
     }
     
     free(arg);
@@ -146,15 +136,15 @@ void * reader (void *arg) {
 void * writer (void *arg) {
     int tid = * (int *) arg;
     
-    while(1) {
+    while(nWrites > 0) {
         startWrite(tid); //!! tranca outros escritores/leitores
 
         // Contexto Protegido em startWrite
-        args.sharedVar = tid;
-        printf("Thread Escritora de ID %d modificou o struct para: sharedVar = %d\n", tid, tid);
+        sharedVar = tid;
+        printf("Thread Escritora de ID %d escreveu sharedVar = %d\n", tid, sharedVar);
 
         endWrite(tid);
-        bobo(tid, tid);
+        sleep(0.5);
     
     }
 
@@ -171,7 +161,8 @@ int main(int argc, char *argv[]) {
     pthread_cond_init(&cond_read, NULL);
     pthread_cond_init(&cond_write, NULL);
 
-    int *tid;
+    int NTHREADS;
+    int *tid; //writers tid
     
     if(argc < 6) {
         fprintf(stderr, "Parameters: %s <# of reader threads> <# of writer threads> <# of reads> <# of writes> <logFileName.txt>\n", argv[0]);
@@ -184,25 +175,27 @@ int main(int argc, char *argv[]) {
     nWrites = atoi(argv[4]);
     logFileName = argv[5];
 
+    NTHREADS = NTHREADS_READ + NTHREADS_WRITE;
+
     printf("Parameters: %s <# of reader threads> <# of writer threads> <# of reads> <# of writes> <logFileName.txt>\n", argv[0]);
     printf("Actual parameters: <# of reader threads = %d> <# of writer threads %d> <# of reads %d> <# of writes = %d> <logFileName.txt = %s>", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites, logFileName);
   
-    tids = malloc(sizeof(pthread_t) * (NTHREADS_READ + NTHREADS_WRITE)); if(!tids) exit(-1);
+    tids = malloc(sizeof(pthread_t) * NTHREADS); if(!tids) exit(-1);
     
-    args.sharedVar = -1; //Começa como -1.
+    sharedVar = -1; //Começa como -1.
     for(int i = 0; i < NTHREADS_READ; i++) {
         tid = malloc(sizeof(int));  if(!tid) exit(-1);
         *tid = i;
         pthread_create(&tids[i], NULL, reader, (void * ) tid);
     }
 
-    for(int i = NTHREADS_READ; i < (NTHREADS_READ + NTHREADS_WRITE);  i++) {
+    for(int i = NTHREADS_READ; i < NTHREADS;  i++) {
         tid = malloc(sizeof(int));  if(!tid) exit(-1);
         *tid = i;
         pthread_create(&tids[i], NULL, writer, (void * ) tid);
     }
 
-    for(int i = 0; i < (NTHREADS_READ + NTHREADS_WRITE); i++) {
+    for(int i = 0; i < NTHREADS; i++) {
         if(pthread_join(tids[i], NULL)) {
             fprintf(stderr, "Failed to pthread_join(tids[%d], NULL)", i);
             return -1;
