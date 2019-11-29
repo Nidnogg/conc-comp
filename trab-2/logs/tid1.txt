@@ -1,10 +1,3 @@
 Thread Leitora de ID 1 leu: sharedVar = 2
 Thread Leitora de ID 1 leu: sharedVar = 3
 Thread Leitora de ID 1 leu: sharedVar = 2
-Thread Leitora de ID 1 leu: sharedVar = 2
-Thread Leitora de ID 1 leu: sharedVar = 2
-Thread Leitora de ID 1 leu: sharedVar = 2
-Thread Leitora de ID 1 leu: sharedVar = 3
-Thread Leitora de ID 1 leu: sharedVar = 3
-Thread Leitora de ID 1 leu: sharedVar = 3
-Thread Leitora de ID 1 leu: sharedVar = 3

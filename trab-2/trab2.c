@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 // General global variables 
-int reading = 0, writing = 0, waitingToWrite = 0, waitingToRead = 0, writeTurn = 0;
+int reading = 0, writing = 0, waitingToWrite = 0, waitingToRead = 0, writeTurn = 0, finishedReaders = 0, finishedWriters = 0;
 int sharedVar;  
 
 // Input global variables
@@ -42,9 +42,14 @@ char * generateFileName(int tid) {
     return filePath; 
 }
 
-void startRead(int tid) {
+int startRead(int tid) {
     pthread_mutex_lock(&mutex);
-   
+
+    if(nReads == 0) {
+        finishedReaders = 1;
+        return finishedReaders;
+    }
+
     writeTurn = -1;
 
     while(writing > 0 || (waitingToWrite > 0 && writeTurn > 0)) {
@@ -57,6 +62,7 @@ void startRead(int tid) {
     reading++;
 
     pthread_mutex_unlock(&mutex);
+    return 0;
 }
 
 void endRead(int tid) {
@@ -74,8 +80,13 @@ void endRead(int tid) {
     pthread_mutex_unlock(&mutex);
 }
 
-void startWrite(int tid) {
+int startWrite(int tid) {
     pthread_mutex_lock(&mutex);
+
+    if(nWrites == 0) {
+        finishedWriters = 1;
+        return finishedWriters;
+    }
   
     // se writeTurn turno de escrita for negativo
     //, isto é, nao for a vez da escrita bloqueia tambem!
@@ -88,13 +99,13 @@ void startWrite(int tid) {
 
     writing++;
     pthread_mutex_unlock(&mutex);
+    return 0;
 }
 
 void endWrite(int tid) {
     pthread_mutex_lock(&mutex);
-
-    writing--;
     
+    writing--;
     printf("Thread Escritora de ID %d irá sinalizar cond_write e broacastear cond_read\n", tid);
 
     if(waitingToWrite) pthread_cond_signal(&cond_write);
@@ -116,8 +127,12 @@ void * reader (void *arg) {
         printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
     }
 
-    while(nReads > 0) {
-        startRead(tid);
+    while(1) {
+        
+        if(startRead(tid)) {
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
 
         readItem = sharedVar;
         fprintf(filePointer, "Thread Leitora de ID %d leu: sharedVar = %d\n", tid, readItem);
@@ -136,8 +151,12 @@ void * reader (void *arg) {
 void * writer (void *arg) {
     int tid = * (int *) arg;
     
-    while(nWrites > 0) {
-        startWrite(tid); //!! tranca outros escritores/leitores
+    while(1) {
+
+        if(startWrite(tid)) {
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
 
         // Contexto Protegido em startWrite
         sharedVar = tid;

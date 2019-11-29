@@ -1,1 +1,1 @@
-./trab2 2 2 20 20 mainOut.txt
+./trab2 2 2 7 10 mainOut.txt
