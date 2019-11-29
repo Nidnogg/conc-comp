@@ -11,7 +11,7 @@ int sharedVar;
 
 // Input global variables
 int nReads, nWrites, NTHREADS_READ, NTHREADS_WRITE;
-char *logFileName;
+char *mainFilePath;
 
 pthread_mutex_t mutex;
 pthread_cond_t cond_read, cond_write;
@@ -42,7 +42,7 @@ char * generateFileName(int tid) {
     return filePath; 
 }
 
-int startRead(int tid) {
+int startRead(int tid, FILE *mainFilePointer) {
     pthread_mutex_lock(&mutex);
 
     while(nReads <= 0) {
@@ -58,12 +58,12 @@ int startRead(int tid) {
             return 1;
         }
         waitingToRead++;
-        printf("WRITE TURN == %d Thread Leitora de ID %d irá se bloquear esperando writing > 0 (writing == %d) (waitingToRead = %d, waitingToWrite = %d)\n", writeTurn, tid, writing, waitingToRead, waitingToWrite);
+        fprintf(mainFilePointer, "Thread Leitora de ID %d irá se bloquear esperando writing > 0 (writing == %d) (waitingToRead = %d, waitingToWrite = %d)\n", tid, writing, waitingToRead, waitingToWrite);
         pthread_cond_wait(&cond_read, &mutex);
         waitingToRead--;
     }
 
-    printf("Thread Leitora de ID %d segue porque writing == %d\n nReads/Writes = %d/%d", tid, writing, nReads, nWrites);
+    fprintf(mainFilePointer, "Thread Leitora de ID %d segue porque writing == %d\n nReads/Writes = %d/%d", tid, writing, nReads, nWrites);
     reading++;
     nReads--;
 
@@ -71,12 +71,12 @@ int startRead(int tid) {
     return 0;
 }
 
-void endRead(int tid) {
+void endRead(int tid,  FILE *mainFilePointer) {
     pthread_mutex_lock(&mutex);
 
     reading--;
     if(reading == 0) {
-        printf("Thread Leitora de ID %d irá sinalizar cond_write (pois reading == %d) e nReads/Writes = %d/%d\n", tid, reading, nReads, nWrites);
+        fprintf(mainFilePointer, "Thread Leitora de ID %d irá sinalizar cond_write (pois reading == %d) e nReads/Writes = %d/%d\n", tid, reading, nReads, nWrites);
         pthread_cond_signal(&cond_write);
     }
 
@@ -85,7 +85,7 @@ void endRead(int tid) {
     pthread_mutex_unlock(&mutex);
 }
 
-int startWrite(int tid) {
+int startWrite(int tid,  FILE *mainFilePointer) {
     pthread_mutex_lock(&mutex);
 
     while(nWrites == 0) {
@@ -102,7 +102,7 @@ int startWrite(int tid) {
         }
   
         waitingToWrite++;
-        printf("WRITE TURN == %d Thread Escritora de ID %d irá esperar cond_write (pois reading (%d) > 0 ou writing (%d) > 0 (waitingToRead = %d, waitingToWrite = %d) )\n", writeTurn, tid, reading, writing, waitingToRead, waitingToWrite);
+        fprintf(mainFilePointer, "Thread Escritora de ID %d irá esperar cond_write (pois reading (%d) > 0 ou writing (%d) > 0 (waitingToRead = %d, waitingToWrite = %d) )\n", tid, reading, writing, waitingToRead, waitingToWrite);
         pthread_cond_wait(&cond_write, &mutex);
         waitingToWrite--;
     }
@@ -114,11 +114,11 @@ int startWrite(int tid) {
     return 0;
 }
 
-void endWrite(int tid) {
+void endWrite(int tid,  FILE *mainFilePointer) {
     pthread_mutex_lock(&mutex);
     
     writing--;
-    printf("Thread Escritora de ID %d irá sinalizar cond_write e broacastear cond_read e nReads/Writes = %d/%d\n", tid, nReads, nWrites);
+    fprintf(mainFilePointer, "Thread Escritora de ID %d irá sinalizar cond_write e broacastear cond_read e nReads/Writes = %d/%d\n", tid, nReads, nWrites);
 
     if(waitingToWrite) pthread_cond_signal(&cond_write);
     if(waitingToRead) pthread_cond_broadcast(&cond_read);
@@ -130,51 +130,68 @@ void * reader (void *arg) {
     int tid = * (int *) arg;
     int readItem;
 
-    char *filePath = generateFileName(tid);
+    char *tidFilePath = generateFileName(tid);
+    FILE *mainFilePointer;
     FILE *tidFilePointer;
     
-    tidFilePointer = fopen(filePath, "w");
+    mainFilePointer = fopen(mainFilePath, "a");
+    if(!mainFilePointer) {
+        printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
+    }
+
+    tidFilePointer = fopen(tidFilePath, "w");
     if(!tidFilePointer) {
         printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
     }
 
+
     while(1) {
-        if(startRead(tid)) {
+        if(startRead(tid, mainFilePointer)) {
             break;
         }
 
         readItem = sharedVar;
         fprintf(tidFilePointer, "Thread Leitora de ID %d leu: sharedVar = %d\n", tid, readItem);
-      
-        endRead(tid);
+        fprintf(mainFilePointer, "Thread Leitora de ID %d leu: sharedVar = %d\n", tid, readItem);
+
+        endRead(tid, mainFilePointer);
         sleep(1);
 
     }
     
     free(arg);
+    fclose(mainFilePointer);
     fclose(tidFilePointer);
+
 
     pthread_exit(NULL);
 }
 
 void * writer (void *arg) {
     int tid = * (int *) arg;
+    FILE *mainFilePointer;
+    
+    mainFilePointer = fopen(mainFilePath, "a");
+    if(!mainFilePointer) {
+        printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
+    }
     
     while(1) {
-        if(startWrite(tid)) {
+        if(startWrite(tid, mainFilePointer)) {
             break;
         }
 
         // Contexto Protegido em startWrite
         sharedVar = tid;
-        printf("Thread Escritora de ID %d escreveu sharedVar = %d\n", tid, sharedVar);
+        fprintf(mainFilePointer, "Thread Escritora de ID %d escreveu sharedVar = %d\n", tid, sharedVar);
 
-        endWrite(tid);
+        endWrite(tid, mainFilePointer);
         sleep(1);
     
     }
 
     free(arg);
+    fclose(mainFilePointer);
     pthread_exit(NULL);
 }
     
@@ -191,7 +208,7 @@ int main(int argc, char *argv[]) {
     int *tid; //writers tid
     
     if(argc < 6) {
-        fprintf(stderr, "Parameters: %s <# of reader threads> <# of writer threads> <# of reads> <# of writes> <logFileName.txt>\n", argv[0]);
+        fprintf(stderr, "Parameters: %s <# of reader threads> <# of writer threads> <# of reads> <# of writes> <mainFilePath.txt>\n", argv[0]);
         return 1;
     }
 
@@ -199,12 +216,12 @@ int main(int argc, char *argv[]) {
     NTHREADS_WRITE = atoi(argv[2]);
     nReads = atoi(argv[3]);
     nWrites = atoi(argv[4]);
-    logFileName = argv[5];
+    mainFilePath = argv[5];
 
     NTHREADS = NTHREADS_READ + NTHREADS_WRITE;
 
-    printf("Parameters: %s <# of reader threads> <# of writer threads> <# of reads> <# of writes> <logFileName.txt>\n", argv[0]);
-    printf("Actual parameters: <# of reader threads = %d> <# of writer threads %d> <# of reads %d> <# of writes = %d> <logFileName.txt = %s>", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites, logFileName);
+    printf("Parameters: %s <# of reader threads> <# of writer threads> <# of reads> <# of writes> <mainFilePath.txt>\n", argv[0]);
+    printf("Actual parameters: <# of reader threads = %d> <# of writer threads %d> <# of reads %d> <# of writes = %d> <mainFilePath.txt = %s>", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites, mainFilePath);
   
     tids = malloc(sizeof(pthread_t) * NTHREADS); if(!tids) exit(-1);
     
