@@ -54,7 +54,7 @@ char * generateFileName(int tid) {
 
 void startRead(int tid) {
     pthread_mutex_lock(&mutex);
-    
+   
     writeTurn = -1;
 
     while(writing > 0 || (waitingToWrite > 0 && writeTurn > 0)) {
@@ -85,10 +85,9 @@ void endRead(int tid) {
 
 void startWrite(int tid) {
     pthread_mutex_lock(&mutex);
-
+  
     // se writeTurn turno de escrita for negativo
     //, isto é, nao for a vez da escrita bloqueia tambem!
-   // while(reading > 0 || writing > 0 || waitingToRead > 0 && writeTurn < 0) {
     while(reading > 0 || writing > 0 || (waitingToRead > 0 && writeTurn < 0 ))  {
         waitingToWrite++;
         printf("WRITE TURN == %d Thread Escritora de ID %d irá esperar cond_write (pois reading (%d) > 0 ou writing (%d) > 0 (waitingToRead = %d, waitingToWrite = %d) )\n", writeTurn, tid, reading, writing, waitingToRead, waitingToWrite);
@@ -109,8 +108,6 @@ void endWrite(int tid) {
 
     if(waitingToWrite) pthread_cond_signal(&cond_write);
     if(waitingToRead) pthread_cond_broadcast(&cond_read);
-    //pthread_cond_signal(&cond_write);
-    //pthread_cond_broadcast(&cond_read);
 
     nWrites--;
     pthread_mutex_unlock(&mutex);
@@ -129,16 +126,15 @@ void * reader (void *arg) {
         printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
     }
 
-    while(nReads > 0) {
+    while(1) {
         startRead(tid);
-        
+
         readItem = args.sharedVar;
        // fprintf(filePointer, "Thread Leitora de ID %d leu: sharedVar = %d\n", tid, readItem);
         printf("Thread Leitora de ID %d leu: sharedVar = %d\n", tid, readItem);
-
         
         endRead(tid);
-        bobo(tid, readItem);
+        bobo(tid, tid);
     }
     
     free(arg);
@@ -150,9 +146,9 @@ void * reader (void *arg) {
 void * writer (void *arg) {
     int tid = * (int *) arg;
     
-    while(nWrites > 0) {
+    while(1) {
         startWrite(tid); //!! tranca outros escritores/leitores
-        
+
         // Contexto Protegido em startWrite
         args.sharedVar = tid;
         printf("Thread Escritora de ID %d modificou o struct para: sharedVar = %d\n", tid, tid);
