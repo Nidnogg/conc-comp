@@ -29,7 +29,7 @@ char * concat(const char *s1, const char *s2){
 }
 
 char * generateFileName(int tid) {
-    char fileName0[30] = "./logThreadReads/tid";
+    char fileName0[30] = "./logs/tid";
     char fileName1[10]; 
     sprintf(fileName1, "%d.txt", tid);   
 
@@ -123,7 +123,7 @@ void * reader (void *arg) {
         fprintf(filePointer, "Thread Leitora de ID %d leu: sharedVar = %d\n", tid, readItem);
       
         endRead(tid);
-        sleep(0.5);
+        sleep(1);
 
     }
     
@@ -144,7 +144,7 @@ void * writer (void *arg) {
         printf("Thread Escritora de ID %d escreveu sharedVar = %d\n", tid, sharedVar);
 
         endWrite(tid);
-        sleep(0.5);
+        sleep(1);
     
     }
 
