@@ -1,7 +1,7 @@
  # -*- coding: utf-8 -*-
 from pathlib import Path
 import os
-import sys # Requer python versao maior que 3.4
+import sys # Requer python versao maior que 3.4!
 
 # Variáveis de entrada e saída
 NTHREADS_READ = 0
@@ -9,7 +9,7 @@ NTHREADS_WRITE = 0
 nReads = 0
 nWrites = 0 
 
-#General global variables
+# Variáveis do problema leitor escritor base, todas descritas no código em C.
 reading = 0
 writing = 0
 waitingToWrite = 0
@@ -17,40 +17,23 @@ waitingToRead = 0
 writeTurn = 0
 sharedVar = -1
 
-readerSignal = 0 
+# As duas variáveis a seguir representam uma implementação rudimentar de um semáforo, 
+# no qual elas são incrementadas de NTHREADS_READ (por conta do broadcast) e 1, respectivamente,
+# toda vez que uma chamada tReaderSignalled ou tWriterSignalledBroadcasted é feita.
+
+# Cada thread "gasta" esse signal decrementando de 1 toda vez que uma chamada tReaderUnblocked ou tWriterUnblocked é feita,
+# para indicar que foi desbloqueada corretamente. Ambas inicializam em 0, e a primeira thread que aparecer recebe um signal = 1 para poder seguir.
+readerSignal = 0     
 writerSignal = 0
 
+# A primeira thread é importante para determinar quem recebe o primeiro signal
 isFirstThread = 1
-
-globalSetterCode = ["global NTHREADS_READ", \
-					"global NTHREADS_WRITE", \
-					"global nReads", \
-					"global nWrites", \
-					"global reading", \
-					"global writing", \
-					"global waitingToWrite", \
-					"global waitingToRead", \
-					"global writeTurn", \
-					"global sharedVar", \
-					"global readerSignal", \
-					"global writerSignal", \
-					"global isFirstThread" ] 
 
 def commandLineParametersRead(nReaderThreads, nWriterThreads, logNReads, logNWrites):
 	global NTHREADS_READ
 	global NTHREADS_WRITE
 	global nReads
 	global nWrites
-	global reading
-	global writing
-	global waitingToWrite
-	global waitingToRead
-	global writeTurn
-	global sharedVar
-	global readerSignal
-	global writerSignal
-	global isFirstThread
-	global evilDebug
 
 	NTHREADS_READ = nReaderThreads
 	NTHREADS_WRITE = nWriterThreads
@@ -61,42 +44,23 @@ def commandLineParametersRead(nReaderThreads, nWriterThreads, logNReads, logNWri
 
 def tRead(tid, readValue):
 	"""Thread tid leu readValue"""
-	global NTHREADS_READ
-	global NTHREADS_WRITE
-	global nReads
-	global nWrites
 	global reading
 	global writing
-	global waitingToWrite
-	global waitingToRead
 	global writeTurn
 	global sharedVar
-	global readerSignal
-	global writerSignal
-	global isFirstThread
 
+	# se é inconsistente com o que acontece.
 	if((readValue != sharedVar) or writing > 0): 
 		return 0
 	else:
-		#print('BEFORE DECREMENT READ == ' + str(reading))
 		reading -= 1
-		#print('AFTER DECREMENT READ == ' + str(reading))
 		return 1
 
 def tReaderStartRead(tid):
-	"""Thread tid leu readValue"""
-	global NTHREADS_READ
-	global NTHREADS_WRITE
-	global nReads
-	global nWrites
-	global reading
-	global writing
-	global waitingToWrite
-	global waitingToRead
-	global writeTurn
-	global sharedVar
+	"""Thread tid vai começar a ler, gasta readerSignal pra ver se espera ou não."""
 	global readerSignal
-	global writerSignal
+	global reading
+	global writeTurn
 	global isFirstThread
 
 	if(isFirstThread):
@@ -110,22 +74,18 @@ def tReaderStartRead(tid):
 	
 def tReaderBlocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 	"""Leitor foi bloqueado, se writing > 0 || (waitingToWrite > 0 && writeTurn > 0)"""
-	global NTHREADS_READ
-	global NTHREADS_WRITE
-	global nReads
-	global nWrites
-	global reading
 	global writing
-	global waitingToWrite
 	global waitingToRead
+	global waitingToWrite
 	global writeTurn
-	global sharedVar
-	global readerSignal
-	global writerSignal
-	global isFirstThread
 
 	waitingToRead += 1
 
+	# Checagem das variáveis de contexto internas do programa em C - se elas não fazem sentido então há algo de errado nos valores durante a execução
+	if not(logWriting > 0 or (logWaitingToWrite > 0 and logWriteTurn) > 0):
+		return 0
+
+	# As demais checagens são feitas reconstruindo uma lógica interna de leitor escritor em Python.
 	if(writing > 0 or (waitingToWrite > 0 and writeTurn > 0)):
 		writeTurn = -1 #RISK
 		return 1
@@ -134,19 +94,9 @@ def tReaderBlocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 
 def tReaderUnblocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 	"""Leitor foi desbloqueado, pois recebeu signal ou broadcast"""
-	global NTHREADS_READ
-	global NTHREADS_WRITE
-	global nReads
-	global nWrites
-	global reading
-	global writing
 	global waitingToWrite
 	global waitingToRead
-	global writeTurn
-	global sharedVar
 	global readerSignal
-	global writerSignal
-	global isFirstThread
 
 	if(readerSignal - 1 < 0): 
 		print(readerSignal)
@@ -159,19 +109,8 @@ def tReaderUnblocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 
 def tReaderSignalled(tid, logReading):
 	"""Leitor enviou signal para Escritores, pois reading == 0"""
-	global NTHREADS_READ
-	global NTHREADS_WRITE
-	global nReads
-	global nWrites
-	global reading
-	global writing
-	global waitingToWrite
-	global waitingToRead
 	global writeTurn
-	global sharedVar
-	global readerSignal
 	global writerSignal
-	global isFirstThread
 
 	writerSignal += 1
 	writeTurn = 1
@@ -182,17 +121,9 @@ def tWrote(tid, writtenValue):
 	"""Escritor escreveu writtenValue"""
 	global NTHREADS_READ
 	global NTHREADS_WRITE
-	global nReads
-	global nWrites
 	global reading
 	global writing
-	global waitingToWrite
-	global waitingToRead
-	global writeTurn
 	global sharedVar
-	global readerSignal
-	global writerSignal
-	global isFirstThread
 
 	if(writtenValue != tid or writing > 1 or reading > 0):
 		return 0
@@ -201,17 +132,7 @@ def tWrote(tid, writtenValue):
 
 def tWriterStartWrite(tid):
 	"""Thread tid leu readValue"""
-	global NTHREADS_READ
-	global NTHREADS_WRITE
-	global nReads
-	global nWrites
-	global reading
 	global writing
-	global waitingToWrite
-	global waitingToRead
-	global writeTurn
-	global sharedVar
-	global readerSignal
 	global writerSignal
 	global isFirstThread
 
@@ -225,21 +146,16 @@ def tWriterStartWrite(tid):
 
 def tWriterBlocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn):
 	"""Escritor foi bloqueado porque reading > 0 || writing > 0 || (waitingToRead > 0 && writeTurn < 0)"""
-	global NTHREADS_READ
-	global NTHREADS_WRITE
-	global nReads
-	global nWrites
 	global reading
 	global writing
 	global waitingToWrite
 	global waitingToRead
 	global writeTurn
-	global sharedVar
-	global readerSignal
-	global writerSignal
-	global isFirstThread
 
 	waitingToWrite += 1
+
+	if not(logReading > 0 or logWriting > 0 or (logWaitingToRead > 0 and logWriteTurn < 0)):
+		return 0
 
 	if(reading > 0 or writing > 0 or (waitingToRead > 0 or writeTurn < 0)): #risk
 		return 1
@@ -247,20 +163,9 @@ def tWriterBlocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn):
 		return 0
 
 def tWriterUnblocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn):
-	"""Escritor foi desbloqueado pois  ( reading > 0 || writing > 0 || (waitingToRead > 0 && writeTurn < 0) == 0 )""" 
-	global NTHREADS_READ
-	global NTHREADS_WRITE
-	global nReads
-	global nWrites
-	global reading
-	global writing
+	"""Escritor foi desbloqueado pois recebeu signal""" 
 	global waitingToWrite
-	global waitingToRead
-	global writeTurn
-	global sharedVar
-	global readerSignal
 	global writerSignal
-	global isFirstThread
 
 	if(writerSignal - 1 < 0): 
 		return 0
@@ -273,18 +178,9 @@ def tWriterUnblocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn
 def tWriterSignalledBroadcasted(tid):
 	"""Escritor sinalizou para escritores e broadcasteou para leitores"""
 	global NTHREADS_READ
-	global NTHREADS_WRITE
-	global nReads
-	global nWrites
-	global reading
 	global writing
-	global waitingToWrite
-	global waitingToRead
-	global writeTurn
-	global sharedVar
 	global readerSignal
 	global writerSignal
-	global isFirstThread
 
 	writerSignal += 1
 	readerSignal = NTHREADS_READ
