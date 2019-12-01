@@ -346,7 +346,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Print sequencial de todos os logs das threads
-    fprintf(mainFilePointer, commandList);
+    fprintf(mainFilePointer, "%s", commandList);
 
     GET_TIME(t_end);
     t_spent = t_end - t_start;
