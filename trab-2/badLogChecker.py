@@ -73,10 +73,13 @@ def tRead(tid, readValue):
 	global writerSignal
 	global isFirstThread
 
+		print("DEU CUUU")
 	if((readValue != sharedVar) or writing > 0): 
 		return 0
 	else:
+		print('BEFORE DECREMENT READ == ' + str(reading))
 		reading -= 1
+		print('AFTER DECREMENT READ == ' + str(reading))
 		return 1
 
 def tReaderStartRead(tid):
@@ -153,7 +156,7 @@ def tReaderUnblocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 	
 	if (not(writing > 0 or (waitingToWrite > 0 and writeTurn > 0))): 
 		waitingToRead -= 1
-		reading += 1
+		#reading += 1
 		return 1
 		
 	else: 
@@ -276,7 +279,7 @@ def tWriterUnblocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn
 
 	if not((reading > 0 or writing > 0 or (waitingToRead > 0 and writeTurn < 0))):
 		waitingToWrite -= 1
-		writing += 1
+		#writing += 1
 		writeTurn = -1
 		return 1
 

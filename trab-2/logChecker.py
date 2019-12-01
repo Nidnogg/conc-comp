@@ -76,6 +76,9 @@ def tRead(tid, readValue):
 	if((readValue != sharedVar) or writing > 0): 
 		return 0
 	else:
+		#print('BEFORE DECREMENT READ == ' + str(reading))
+		reading -= 1
+		#print('AFTER DECREMENT READ == ' + str(reading))
 		return 1
 
 def tReaderStartRead(tid):
@@ -93,6 +96,10 @@ def tReaderStartRead(tid):
 	global readerSignal
 	global writerSignal
 	global isFirstThread
+
+	if(isFirstThread):
+		readerSignal = 1
+		isFirstThread = 0 #tava no tUnblocked antes
 
 	reading += 1
 	writeTurn = -1
@@ -116,10 +123,6 @@ def tReaderBlocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 	global isFirstThread
 
 	waitingToRead += 1
-	
-	#print("waitingToRead INTERNAL = " + str(waitingToRead))
-	#print("writeTurn internal = " + str(writeTurn))
-	#print("writing = " + str(writing))
 
 	if(writing > 0 or (waitingToWrite > 0 and writeTurn > 0)):
 		writeTurn = -1 #RISK
@@ -128,7 +131,7 @@ def tReaderBlocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 		return 0
 
 def tReaderUnblocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
-	"""Leitor foi desbloqueado, pois ( writing > 0 || (waitingToWrite > 0 && writeTurn > 0) ) == 0"""
+	"""Leitor foi desbloqueado, pois recebeu signal ou broadcast"""
 	global NTHREADS_READ
 	global NTHREADS_WRITE
 	global nReads
@@ -143,27 +146,14 @@ def tReaderUnblocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 	global writerSignal
 	global isFirstThread
 
-	if(isFirstThread):
-		readerSignal = 1
-		isFirstThread = 0
-
 	if(readerSignal - 1 < 0): 
+		print(readerSignal)
 		return 0
 
-	else: readerSignal -= 1
-
-	if (not(writing > 0 or (waitingToWrite > 0 and writeTurn > 0))): 
+	else:
+		readerSignal -= 1
 		waitingToRead -= 1
 		return 1
-
-	# Caso um escritor tenha sinalizado e broadcasteado um escritor e leitores, e o signal do escritor esteja
-	# pendente, essa checagem extra garante que não está errando o output
-	if (not(writing > 0 or writeTurn > 0) and writerSignal > 0):
-		waitingToRead -= 1
-		return 1
-
-	else: 
-		return 0
 
 def tReaderSignalled(tid, logReading):
 	"""Leitor enviou signal para Escritores, pois reading == 0"""
@@ -183,7 +173,7 @@ def tReaderSignalled(tid, logReading):
 
 	#if(reading > 0): return 0
 	writerSignal += 1
-	reading -= 1
+	#reading -= 1
 	writeTurn = 1
 
 	return 1
@@ -226,6 +216,10 @@ def tWriterStartWrite(tid):
 	global writerSignal
 	global isFirstThread
 
+	if(isFirstThread):
+		writerSignal = 1
+		isFirstThread = 0
+
 	writing += 1
 	return 1
 
@@ -254,7 +248,7 @@ def tWriterBlocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn):
 	#rint("writing internal = " + str(writing))
 
 
-	if(reading > 0 or writing > 0 or (waitingToRead > 0 and writeTurn < 0)):
+	if(reading > 0 or writing > 0 or (waitingToRead > 0 or writeTurn < 0)): #risk
 		return 1
 	else: 
 		return 0
@@ -275,20 +269,21 @@ def tWriterUnblocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn
 	global writerSignal
 	global isFirstThread
 
-	if(isFirstThread):
-		writerSignal = 1
-		isFirstThread = 0
+	if(writerSignal - 1 < 0): 
+		return 0
 
-	if(writerSignal - 1 < 0): return 0
 	else:
 		writerSignal -= 1
-
-	if not((reading > 0 or writing > 0 or (waitingToRead > 0 and writeTurn < 0))):
 		waitingToWrite -= 1
 		return 1
 
-	else: 
-		return 0
+
+	#if not((reading > 0 or writing > 0 or (waitingToRead > 0 and writeTurn < 0))):
+		
+
+	#else: 
+	#	print("DEU CUUUU")
+	#	return 0
 
 def tWriterSignalledBroadcasted(tid):
 	"""Escritor sinalizou para escritores e broadcasteou para leitores"""
@@ -325,16 +320,18 @@ def main():
 		for command in open(logFilePath, 'r'):
 			if(eval(command)):
 				#print(writing)
-				print("writeTurn == " + str(writeTurn) )
 				if(writing > 1): print("SHIIIIII")
 				if(reading > 2): print("FUUUUUUU")
+				#print("readerSignal == " + str(readerSignal))
+				#print("writeTurn == " + str(writeTurn) )
 				#print("waitingToRead = " + str(waitingToRead))
 				#print("waitingToWrite = " + str(waitingToWrite))
 				#print("writerSignal = " + str(writerSignal))
 				#print("writing = " + str(writing))
 
 				#print("reading = " + str(reading))
-				print(command.strip("\n") + " is correct")
+				#print(command.strip("\n") + " is correct")
+				pass
 			else:
 				print(command.strip("\n") + " has failed!")
 		open(logFilePath, 'r').close()

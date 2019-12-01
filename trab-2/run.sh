@@ -1,2 +1,2 @@
 ./clean.sh
-./trab2 2 2 6 6 ./logs/mainTest.txt
+./trab2 2 2 10 10 ./logs/mainTest.txt

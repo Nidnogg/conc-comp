@@ -67,6 +67,7 @@ int startRead(int tid) {
             pthread_mutex_unlock(&mutex);
             return 1;
         }
+        
         waitingToRead++; //Threads esperando marcam sua respectiva fila de espera
 
         pthread_mutex_lock(&fileMutex);
