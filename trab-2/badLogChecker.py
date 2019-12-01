@@ -15,8 +15,8 @@ waitingToRead = 0
 writeTurn = 0
 sharedVar = -1
 
-readerSignal = 0 
-writerSignal = 0
+readerSignal = 1 #tem que ficar ligado
+writerSignal = 1
 
 isFirstThread = 1
 
@@ -76,6 +76,7 @@ def tRead(tid, readValue):
 	if((readValue != sharedVar) or writing > 0): 
 		return 0
 	else:
+		reading -= 1
 		return 1
 
 def tReaderStartRead(tid):
@@ -152,7 +153,7 @@ def tReaderUnblocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 	
 	if (not(writing > 0 or (waitingToWrite > 0 and writeTurn > 0))): 
 		waitingToRead -= 1
-		#reading += 1
+		reading += 1
 		return 1
 		
 	else: 
@@ -176,8 +177,6 @@ def tReaderSignalled(tid, logReading):
 
 	#if(reading > 0): return 0
 	writerSignal += 1
-	reading -= 1
-
 	return 1
 
 def tWrote(tid, writtenValue):
@@ -196,10 +195,11 @@ def tWrote(tid, writtenValue):
 	global writerSignal
 	global isFirstThread
 
-	#	print("writtenValue = "  + str(writtenValue) + " tid = " + str(tid) + " writing = " + str(writing) + " reading = " + str(reading) ) 
+	#print("writtenValue = "  + str(writtenValue) + " tid = " + str(tid) + " writing = " + str(writing) + " reading = " + str(reading) ) 
 	if(writtenValue != tid or writing > 1 or reading > 0):
 		return 0
 	sharedVar = writtenValue
+	writing -= 1
 	return 1
 
 def tWriterStartWrite(tid):
@@ -239,11 +239,11 @@ def tWriterBlocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn):
 	global isFirstThread
 
 	waitingToWrite += 1
-	#print("wwaitingToWrite internal = " + str(waitingToWrite))
+	print("wwaitingToWrite internal = " + str(waitingToWrite))
 
-	#print("writeTurn internal = " + str(writeTurn))
-	#print("reading int = " + str(reading))
-	#rint("writing internal = " + str(writing))
+	print("writeTurn internal = " + str(writeTurn))
+	print("reading int = " + str(reading))
+	print("writing internal = " + str(writing))
 
 
 	if(reading > 0 or writing > 0 or (waitingToRead > 0 and writeTurn < 0)):
@@ -276,7 +276,7 @@ def tWriterUnblocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn
 
 	if not((reading > 0 or writing > 0 or (waitingToRead > 0 and writeTurn < 0))):
 		waitingToWrite -= 1
-		#writing += 1
+		writing += 1
 		writeTurn = -1
 		return 1
 
@@ -302,8 +302,6 @@ def tWriterSignalledBroadcasted(tid):
 	#devodarmenos1aqui? (tem que ver)
 	writerSignal += 1
 	readerSignal = NTHREADS_READ
-	writing -= 1
-
 	return 1
 
 def main():
@@ -317,13 +315,11 @@ def main():
 		# Main routine
 		for command in open(logFilePath, 'r'):
 			if(eval(command)):
-				#print(writing)
-				if(writing > 1): print("SHIIIIII")
-				if(reading > 2): print("FUUUUUUU")
+				pass
 				#print("waitingToRead = " + str(waitingToRead))
 				#print("waitingToWrite = " + str(waitingToWrite))
-				#print("reading = " + str(reading))
-				#print(command.strip("\n") + " is correct")
+				print("reading = " + str(reading))
+				print(command.strip("\n") + " is correct")
 			else:
 				print(command.strip("\n") + " has failed!")
 		open(logFilePath, 'r').close()
