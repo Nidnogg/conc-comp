@@ -153,7 +153,7 @@ void * reader (void *arg) {
     FILE *mainFilePointer; // mainFilePointer é o log principal de diagnostico, que será avaliado pelo logger auxiliar
     FILE *tidFilePointer;  // tidFilePointer é o .txt para cada thread leitora com seus valores lidos
     
-    mainFilePointer = fopen(mainFilePath, "a");
+    mainFilePointer = fopen(mainFilePath, "a+");
     if(!mainFilePointer) {
         printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
     }
@@ -170,6 +170,7 @@ void * reader (void *arg) {
         }
 
         readItem = sharedVar;
+        fprintf(stdout, "Thread %d leu %d\n", tid, readItem);
         fprintf(tidFilePointer, "%d\n", readItem); // É impresso o valor lido para tid.txt e logPrincipal.txt
         fprintf(mainFilePointer, "tRead(%d, %d)\n", tid, readItem);
 
@@ -191,7 +192,7 @@ void * writer (void *arg) {
     int tid = * (int *) arg;
     FILE *mainFilePointer;
     
-    mainFilePointer = fopen(mainFilePath, "a");
+    mainFilePointer = fopen(mainFilePath, "a+");
     if(!mainFilePointer) {
         printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
     }
@@ -203,7 +204,9 @@ void * writer (void *arg) {
 
         // Contexto Protegido em startWrite
         sharedVar = tid; // Escreve-se em sharedVar. Nesse trecho, todas as outras threads estarão esperando esta termina em razão dos condicionais
+        fprintf(stdout, "Thread %d escreveu %d\n", tid, sharedVar);
         fprintf(mainFilePointer, "tWrote(%d, %d)\n", tid, sharedVar);
+
 
         endWrite(tid, mainFilePointer); // Seção crítica
         sleep(1); // Importante ser o mesmo tempo que em readers!
@@ -221,6 +224,7 @@ void * writer (void *arg) {
 int main(int argc, char *argv[]) { 
 
     pthread_t *tids; // Vetor com IDs de threads
+    FILE *mainFilePointer;
 
     // Inicialização de mutexes e condicionais
     pthread_mutex_init(&mutex, NULL);
@@ -245,8 +249,17 @@ int main(int argc, char *argv[]) {
 
     NTHREADS = NTHREADS_READ + NTHREADS_WRITE;
 
-    printf("Parâmetros lidos: <# of reader threads = %d> <# of writer threads %d> <# of reads %d> <# of writes = %d> <mainFilePath.txt = %s>", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites, mainFilePath);
-  
+    // Abertura do arquivo de log   
+    mainFilePointer = fopen(mainFilePath, "a+");
+    if(!mainFilePointer) {
+        printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
+    }
+   // fprintf(stdout, "Parâmetros lidos: <# of reader threads = %d> <# of writer threads %d> <# of reads %d> <# of writes = %d> <mainFilePath.txt = %s>\n", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites, mainFilePath);
+    fprintf(mainFilePointer, "commandLineParametersRead(%d, %d, %d, %d)\n", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites);
+    fprintf(stdout, "commandLineParametersRead(%d, %d, %d, %d)\n", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites);
+
+    fclose(mainFilePointer);
+    
     tids = malloc(sizeof(pthread_t) * NTHREADS); if(!tids) exit(-1);
     
     sharedVar = -1; //Começa como -1.
