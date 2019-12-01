@@ -77,7 +77,6 @@ def tRead(tid, readValue):
 		return 0
 	else:
 		reading -= 1
-		writeTurn = 1
 		return 1
 
 def tReaderStartRead(tid):
@@ -97,6 +96,8 @@ def tReaderStartRead(tid):
 	global isFirstThread
 
 	reading += 1
+	writeTurn = 1
+
 	return 1
 	
 def tReaderBlocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
@@ -314,11 +315,11 @@ def main():
 		# Main routine
 		for command in open(logFilePath, 'r'):
 			if(eval(command)):
-				print("waitingToRead = " + str(waitingToRead))
-				print("waitingToWrite = " + str(waitingToWrite))
-				print("writing = " + str(writing))
-
-				#print(command.strip("\n") + " is correct")
+				pass
+				#print("waitingToRead = " + str(waitingToRead))
+				#print("waitingToWrite = " + str(waitingToWrite))
+				#print("writing = " + str(writing))
+				print(command.strip("\n") + " is correct")
 			else:
 				print(command.strip("\n") + " has failed!")
 		open(logFilePath, 'r').close()
