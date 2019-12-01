@@ -95,7 +95,7 @@ def tReaderStartRead(tid):
 	global isFirstThread
 
 	reading += 1
-	writeTurn = 1
+	writeTurn = -1
 
 	return 1
 	
@@ -116,11 +116,13 @@ def tReaderBlocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 	global isFirstThread
 
 	waitingToRead += 1
-	print("waitingToRead INTERNAL = " + str(waitingToRead))
-	print("writeTurn internal = " + str(writeTurn))
-	print("writing = " + str(writing))
+	
+	#print("waitingToRead INTERNAL = " + str(waitingToRead))
+	#print("writeTurn internal = " + str(writeTurn))
+	#print("writing = " + str(writing))
 
 	if(writing > 0 or (waitingToWrite > 0 and writeTurn > 0)):
+		writeTurn = -1 #RISK
 		return 1
 	else: 
 		return 0
@@ -147,14 +149,19 @@ def tReaderUnblocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 
 	if(readerSignal - 1 < 0): 
 		return 0
+
 	else: readerSignal -= 1
-	
-	
+
 	if (not(writing > 0 or (waitingToWrite > 0 and writeTurn > 0))): 
 		waitingToRead -= 1
-		#reading += 1
 		return 1
-		
+
+	# Caso um escritor tenha sinalizado e broadcasteado um escritor e leitores, e o signal do escritor esteja
+	# pendente, essa checagem extra garante que não está errando o output
+	if (not(writing > 0 or writeTurn > 0) and writerSignal > 0):
+		waitingToRead -= 1
+		return 1
+
 	else: 
 		return 0
 
@@ -177,6 +184,7 @@ def tReaderSignalled(tid, logReading):
 	#if(reading > 0): return 0
 	writerSignal += 1
 	reading -= 1
+	writeTurn = 1
 
 	return 1
 
@@ -272,12 +280,11 @@ def tWriterUnblocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn
 		isFirstThread = 0
 
 	if(writerSignal - 1 < 0): return 0
-	else: writerSignal -= 1
+	else:
+		writerSignal -= 1
 
 	if not((reading > 0 or writing > 0 or (waitingToRead > 0 and writeTurn < 0))):
 		waitingToWrite -= 1
-		#writing += 1
-		writeTurn = -1
 		return 1
 
 	else: 
@@ -318,12 +325,16 @@ def main():
 		for command in open(logFilePath, 'r'):
 			if(eval(command)):
 				#print(writing)
+				print("writeTurn == " + str(writeTurn) )
 				if(writing > 1): print("SHIIIIII")
 				if(reading > 2): print("FUUUUUUU")
 				#print("waitingToRead = " + str(waitingToRead))
 				#print("waitingToWrite = " + str(waitingToWrite))
+				#print("writerSignal = " + str(writerSignal))
+				#print("writing = " + str(writing))
+
 				#print("reading = " + str(reading))
-				#print(command.strip("\n") + " is correct")
+				print(command.strip("\n") + " is correct")
 			else:
 				print(command.strip("\n") + " has failed!")
 		open(logFilePath, 'r').close()
