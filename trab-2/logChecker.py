@@ -73,8 +73,6 @@ def tRead(tid, readValue):
 	global writerSignal
 	global isFirstThread
 
-	print(readValue)
-	print(sharedVar)
 	if((readValue != sharedVar) or writing > 0): 
 		return 0
 	else:
@@ -118,6 +116,10 @@ def tReaderBlocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 	global isFirstThread
 
 	waitingToRead += 1
+	print("waitingToRead INTERNAL = " + str(waitingToRead))
+	print("writeTurn internal = " + str(writeTurn))
+	print("writing = " + str(writing))
+
 	if(writing > 0 or (waitingToWrite > 0 and writeTurn > 0)):
 		return 1
 	else: 
@@ -199,6 +201,26 @@ def tWrote(tid, writtenValue):
 	writing -= 1
 	return 1
 
+def tWriterStartWrite(tid):
+	"""Thread tid leu readValue"""
+	global NTHREADS_READ
+	global NTHREADS_WRITE
+	global nReads
+	global nWrites
+	global reading
+	global writing
+	global waitingToWrite
+	global waitingToRead
+	global writeTurn
+	global sharedVar
+	global readerSignal
+	global writerSignal
+	global isFirstThread
+
+	writing += 1
+	return 1
+
+
 def tWriterBlocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn):
 	"""Escritor foi bloqueado porque reading > 0 || writing > 0 || (waitingToRead > 0 && writeTurn < 0)"""
 	global NTHREADS_READ
@@ -216,6 +238,13 @@ def tWriterBlocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn):
 	global isFirstThread
 
 	waitingToWrite += 1
+	print("wwaitingToWrite internal = " + str(waitingToWrite))
+
+	print("writeTurn internal = " + str(writeTurn))
+	print("reading int = " + str(reading))
+	print("writing internal = " + str(writing))
+
+
 	if(reading > 0 or writing > 0 or (waitingToRead > 0 and writeTurn < 0)):
 		return 1
 	else: 
@@ -271,7 +300,7 @@ def tWriterSignalledBroadcasted(tid):
 
 	#devodarmenos1aqui? (tem que ver)
 	writerSignal += 1
-	readerSignal += NTHREADS_READ
+	readerSignal = NTHREADS_READ
 	return 1
 
 def main():
@@ -285,11 +314,11 @@ def main():
 		# Main routine
 		for command in open(logFilePath, 'r'):
 			if(eval(command)):
-				#print("waitingToRead = " + str(waitingToRead))
-				#print("waitingToWrite = " + str(waitingToWrite))
+				print("waitingToRead = " + str(waitingToRead))
+				print("waitingToWrite = " + str(waitingToWrite))
+				print("writing = " + str(writing))
 
-				print(command.strip("\n") + " is correct")
-				pass
+				#print(command.strip("\n") + " is correct")
 			else:
 				print(command.strip("\n") + " has failed!")
 		open(logFilePath, 'r').close()

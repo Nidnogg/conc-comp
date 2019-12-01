@@ -14,7 +14,7 @@ int nReads, nWrites, NTHREADS_READ, NTHREADS_WRITE;
 char *mainFilePath;
 
 // Mutexes e condicionais
-pthread_mutex_t mutex;
+pthread_mutex_t mutex, fileMutex;
 pthread_cond_t cond_read, cond_write;
 
 // Função auxiliar pra concatenação de strings
@@ -66,16 +66,27 @@ int startRead(int tid, FILE *mainFilePointer) {
             return 1;
         }
         waitingToRead++; //Threads esperando marcam sua respectiva fila de espera
+
+        pthread_mutex_lock(&fileMutex);
         fprintf(stdout, "Thread Leitora de ID %d irá se bloquear esperando writing > 0 (writing == %d) (waitingToRead = %d), (writeTurn = %d)\n", tid, writing, waitingToRead, writeTurn);
         fprintf(mainFilePointer, "tReaderBlocked(%d, %d, %d, %d)\n", tid, writing, waitingToWrite, writeTurn);
+        pthread_mutex_unlock(&fileMutex);
+
         pthread_cond_wait(&cond_read, &mutex);
         waitingToRead--;  // e a desmarcam ao parar de esperar
+        
+        pthread_mutex_lock(&fileMutex);
         fprintf(stdout, "Thread Leitora de ID %d segue porque writing == %d\n", tid, writing);
         fprintf(mainFilePointer, "tReaderUnblocked(%d, %d, %d, %d)\n", tid, writing, waitingToWrite, writeTurn);
+        pthread_mutex_unlock(&fileMutex);
+
     }
 
+    pthread_mutex_lock(&fileMutex);
     fprintf(stdout, "Thread Leitora de ID %d vai ler\n", tid);
     fprintf(mainFilePointer, "tReaderStartRead(%d)\n", tid);
+    pthread_mutex_unlock(&fileMutex);
+
     reading++;  // Agora há +1 thread lendo
     nReads--;   // Cada leitura é subtraída no startRead
 
@@ -90,8 +101,11 @@ void endRead(int tid,  FILE *mainFilePointer) {
 
     reading--;
     if(reading == 0) {
+        pthread_mutex_lock(&fileMutex);
         fprintf(stdout, "Thread Leitora de ID %d irá sinalizar cond_write (pois reading == %d)\n", tid, reading);
         fprintf(mainFilePointer, "tReaderSignalled(%d, %d)\n", tid, reading);
+        pthread_mutex_unlock(&fileMutex);
+
         pthread_cond_signal(&cond_write);
     }
 
@@ -119,15 +133,26 @@ int startWrite(int tid,  FILE *mainFilePointer) {
   
         waitingToWrite++;  //Threads esperando marcam sua respectiva fila de espera
         
+        pthread_mutex_lock(&fileMutex);
         fprintf(stdout, "Thread Escritora de ID %d irá esperar cond_write (pois reading (%d) > 0 ou writing (%d) > 0 (waitingToRead = %d, writeTurn = %d) )\n", tid, reading, writing, waitingToRead, writeTurn);
         fprintf(mainFilePointer, "tWriterBlocked(%d, %d, %d, %d, %d)\n", tid, reading, writing, waitingToRead, writeTurn);
+        pthread_mutex_unlock(&fileMutex);
+
         pthread_cond_wait(&cond_write, &mutex); // e a desmarcam ao parar de esperar
         
         waitingToWrite--;
         
+        pthread_mutex_lock(&fileMutex);
         fprintf(stdout, "Thread Escritora de ID %d desbloqueada pois reading = %d ou writing = %d ou (waitingToRead = %d writeTurn = %d))\n", tid, reading, writing, waitingToRead, writeTurn);
         fprintf(mainFilePointer, "tWriterUnblocked(%d, %d, %d, %d, %d)\n", tid, reading, writing, waitingToRead, writeTurn);
+        pthread_mutex_unlock(&fileMutex);
+
     }
+
+    pthread_mutex_lock(&fileMutex);
+    fprintf(stdout, "Thread Escritora de ID %d vai escrever\n", tid);
+    fprintf(mainFilePointer, "tWriterStartWrite(%d)\n", tid);
+    pthread_mutex_unlock(&fileMutex);
 
     writing++;
     nWrites--;
@@ -141,8 +166,12 @@ void endWrite(int tid,  FILE *mainFilePointer) {
     pthread_mutex_lock(&mutex);
     
     writing--;
+
+    pthread_mutex_lock(&fileMutex);
     fprintf(stdout, "Thread Escritora de ID %d irá sinalizar cond_write e broacastear cond_read\n", tid);
     fprintf(mainFilePointer, "tWriterSignalledBroadcasted(%d)\n", tid);
+    pthread_mutex_unlock(&fileMutex);
+
 
     if(waitingToWrite) pthread_cond_signal(&cond_write); // libera um escritor se tiver esperando
     if(waitingToRead) pthread_cond_broadcast(&cond_read); // libera todos os leitores se houver algum esperando
@@ -176,9 +205,13 @@ void * reader (void *arg) {
         }
 
         readItem = sharedVar;
+
+        pthread_mutex_lock(&fileMutex);
         fprintf(stdout, "Thread %d leu %d\n", tid, readItem);
         fprintf(tidFilePointer, "%d\n", readItem); // É impresso o valor lido para tid.txt e logPrincipal.txt
         fprintf(mainFilePointer, "tRead(%d, %d)\n", tid, readItem);
+        pthread_mutex_unlock(&fileMutex);
+
 
         endRead(tid, mainFilePointer); // Seção crítica protegida por locks
         sleep(1); // Tempo de processamento - necessário de se ajustar em certos computadores para que funcione corretamente. Deve ser o mesmo para leitora e escritora.
@@ -210,8 +243,10 @@ void * writer (void *arg) {
 
         // Contexto Protegido em startWrite
         sharedVar = tid; // Escreve-se em sharedVar. Nesse trecho, todas as outras threads estarão esperando esta termina em razão dos condicionais
+        pthread_mutex_lock(&fileMutex);
         fprintf(stdout, "Thread %d escreveu %d\n", tid, sharedVar);
         fprintf(mainFilePointer, "tWrote(%d, %d)\n", tid, sharedVar);
+        pthread_mutex_unlock(&fileMutex);
 
 
         endWrite(tid, mainFilePointer); // Seção crítica
@@ -234,6 +269,9 @@ int main(int argc, char *argv[]) {
 
     // Inicialização de mutexes e condicionais
     pthread_mutex_init(&mutex, NULL);
+    pthread_mutex_init(&fileMutex, NULL);
+
+
     pthread_cond_init(&cond_read, NULL);
     pthread_cond_init(&cond_write, NULL);
 
@@ -261,8 +299,10 @@ int main(int argc, char *argv[]) {
         printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
     }
    // fprintf(stdout, "Parâmetros lidos: <# of reader threads = %d> <# of writer threads %d> <# of reads %d> <# of writes = %d> <mainFilePath.txt = %s>\n", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites, mainFilePath);
+    pthread_mutex_lock(&fileMutex);
     fprintf(mainFilePointer, "commandLineParametersRead(%d, %d, %d, %d)\n", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites);
     fprintf(stdout, "commandLineParametersRead(%d, %d, %d, %d)\n", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites);
+    pthread_mutex_unlock(&fileMutex);
 
     fclose(mainFilePointer);
 
