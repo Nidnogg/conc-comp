@@ -1,6 +1,7 @@
+ # -*- coding: utf-8 -*-
 from pathlib import Path
 import os
-import sys # Requires Python ver >=3.4!
+import sys # Requer python versao maior que 3.4
 
 # Variáveis de entrada e saída
 NTHREADS_READ = 0
@@ -291,12 +292,17 @@ def tWriterSignalledBroadcasted(tid):
 
 	return 1
 
+def timeSpent(time):
+	print("Tempo de execução: " + str(time) + "s")
+	return 1
+
 def main():
 	# Lista com arquivos de logs a serem testados
 	logFilePaths = []
 
 	# Coloca na lista todos os arquivos log
-	for file in os.listdir(Path("logs")):
+	for file in os.listdir("logs"):
+		print(file)
 		if file.endswith(".txt"):
 			logFilePaths.append(Path("logs/" + file))
 
@@ -308,7 +314,7 @@ def main():
 			lineCounter = 0
 			failedLineCounter = 0
 			print('Testando ' + str(currentTestPath)) 
-			logFile = open(currentTestPath, 'r')
+			logFile = open(Path(currentTestPath), 'r')
 			for lineNum, command in enumerate(logFile, start=1):
 				if(eval(command)):
 					pass

@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <unistd.h>
+#include "timer.h"
 
 // Variáveis globais gerais 
 int reading = 0, writing = 0, waitingToWrite = 0, waitingToRead = 0, writeTurn = 0;
@@ -34,7 +35,7 @@ char * concat(const char *s1, const char *s2){
 
 // Auxiliar, gera filePath de cada tid leitra
 char * generateFileName(int tid) {
-    char fileName0[30] = "./logs/";
+    char fileName0[30] = "./logs/lastTestReaders/";
     char fileName1[20]; 
     sprintf(fileName1, "%d.txt", tid);   
 
@@ -272,6 +273,8 @@ int main(int argc, char *argv[]) {
 
     pthread_t *tids; // Vetor com IDs de threads
     FILE *mainFilePointer;
+    double t_start, t_end, t_spent;
+
 
     // Inicialização de mutexes e condicionais
     pthread_mutex_init(&mutex, NULL);
@@ -289,7 +292,7 @@ int main(int argc, char *argv[]) {
     
     // Caso o usuário imprima não digite o número correto de parâmetros
     if(argc < 6) {
-        fprintf(stderr, "Parameters: %s <# of reader threads> <# of writer threads> <# of reads> <# of writes> <mainFilePath.txt>\n", argv[0]);
+        fprintf(stderr, "Digite: %s <# of reader threads> <# of writer threads> <# of reads> <# of writes> <mainFilePath.txt>\n", argv[0]);
         return 1;
     }
 
@@ -318,6 +321,8 @@ int main(int argc, char *argv[]) {
     
     sharedVar = -1; //Começa como -1.
 
+    GET_TIME(t_start);
+
     // Criação de threads leitoras
     for(int i = 0; i < NTHREADS_READ; i++) {
         tid = malloc(sizeof(int));  if(!tid) exit(-1);
@@ -340,9 +345,15 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // Print sequencial de todos os logs das threads
     fprintf(mainFilePointer, commandList);
-    fclose(mainFilePointer);
 
+    GET_TIME(t_end);
+    t_spent = t_end - t_start;
+    fprintf(stdout, "Tempo de execução: %.4fs\n", t_spent);
+    fprintf(mainFilePointer, "timeSpent(%.4f)\n", t_spent);
+    fclose(mainFilePointer);
+    
     printf("Terminando thread principal\n");
     free(tids);
     pthread_exit(NULL);
