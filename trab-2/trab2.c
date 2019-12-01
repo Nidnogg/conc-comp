@@ -34,8 +34,8 @@ char * concat(const char *s1, const char *s2){
 
 // Auxiliar, gera filePath de cada tid leitra
 char * generateFileName(int tid) {
-    char fileName0[30] = "./logs/readers/";
-    char fileName1[10]; 
+    char fileName0[30] = "./logs/";
+    char fileName1[20]; 
     sprintf(fileName1, "%d.txt", tid);   
 
     char *filePath;
@@ -43,7 +43,6 @@ char * generateFileName(int tid) {
     if(!filePath) { fprintf(stderr, "Failed to malloc filePath\n"); exit(-1); }
     
     filePath = concat(fileName0, fileName1);
-
     return filePath; 
 }
 
@@ -225,6 +224,7 @@ void * reader (void *arg) {
         commandList = concat(commandList, commandToAppend);
         pthread_mutex_unlock(&fileMutex);
 
+        fprintf(tidFilePointer, "%d\n", readItem);
 
         endRead(tid); // Seção crítica protegida por locks
         sleep(1); // Tempo de processamento - necessário de se ajustar em certos computadores para que funcione corretamente. Deve ser o mesmo para leitora e escritora.
@@ -232,8 +232,8 @@ void * reader (void *arg) {
     }
     
     // Garbage collection
-    free(arg);
     fclose(tidFilePointer);
+    free(arg);
 
     pthread_exit(NULL);
 }
@@ -277,10 +277,10 @@ int main(int argc, char *argv[]) {
     pthread_mutex_init(&mutex, NULL);
     pthread_mutex_init(&fileMutex, NULL);
 
-
     pthread_cond_init(&cond_read, NULL);
     pthread_cond_init(&cond_write, NULL);
 
+    // Todos os comandos são concatenados a essa lista, que é escrita no arquivo após o término das threads
     commandList = malloc(sizeof(char *) * 10000);
     if(!commandList) exit(-1);
     
@@ -303,7 +303,7 @@ int main(int argc, char *argv[]) {
     NTHREADS = NTHREADS_READ + NTHREADS_WRITE;
 
     // Abertura do arquivo de log   
-    mainFilePointer = fopen(mainFilePath, "a");
+    mainFilePointer = fopen(mainFilePath, "w");
     if(!mainFilePointer) {
         printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
     }

@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import sys # Requires Python ver >=3.4!
 
 # Variáveis de entrada e saída
@@ -15,8 +16,8 @@ waitingToRead = 0
 writeTurn = 0
 sharedVar = -1
 
-readerSignal = 1 #tem que ficar ligado
-writerSignal = 1
+readerSignal = 0 
+writerSignal = 0
 
 isFirstThread = 1
 
@@ -73,13 +74,12 @@ def tRead(tid, readValue):
 	global writerSignal
 	global isFirstThread
 
-		print("DEU CUUU")
 	if((readValue != sharedVar) or writing > 0): 
 		return 0
 	else:
-		print('BEFORE DECREMENT READ == ' + str(reading))
+		#print('BEFORE DECREMENT READ == ' + str(reading))
 		reading -= 1
-		print('AFTER DECREMENT READ == ' + str(reading))
+		#print('AFTER DECREMENT READ == ' + str(reading))
 		return 1
 
 def tReaderStartRead(tid):
@@ -98,8 +98,12 @@ def tReaderStartRead(tid):
 	global writerSignal
 	global isFirstThread
 
+	if(isFirstThread):
+		readerSignal = 1
+		isFirstThread = 0 #tava no tUnblocked antes
+
 	reading += 1
-	writeTurn = 1
+	writeTurn = -1
 
 	return 1
 	
@@ -120,17 +124,15 @@ def tReaderBlocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 	global isFirstThread
 
 	waitingToRead += 1
-	print("waitingToRead INTERNAL = " + str(waitingToRead))
-	print("writeTurn internal = " + str(writeTurn))
-	print("writing = " + str(writing))
 
 	if(writing > 0 or (waitingToWrite > 0 and writeTurn > 0)):
+		writeTurn = -1 #RISK
 		return 1
 	else: 
 		return 0
 
 def tReaderUnblocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
-	"""Leitor foi desbloqueado, pois ( writing > 0 || (waitingToWrite > 0 && writeTurn > 0) ) == 0"""
+	"""Leitor foi desbloqueado, pois recebeu signal ou broadcast"""
 	global NTHREADS_READ
 	global NTHREADS_WRITE
 	global nReads
@@ -145,22 +147,14 @@ def tReaderUnblocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 	global writerSignal
 	global isFirstThread
 
-	if(isFirstThread):
-		readerSignal = 1
-		isFirstThread = 0
-
 	if(readerSignal - 1 < 0): 
+		print(readerSignal)
 		return 0
-	else: readerSignal -= 1
-	
-	
-	if (not(writing > 0 or (waitingToWrite > 0 and writeTurn > 0))): 
+
+	else:
+		readerSignal -= 1
 		waitingToRead -= 1
-		#reading += 1
 		return 1
-		
-	else: 
-		return 0
 
 def tReaderSignalled(tid, logReading):
 	"""Leitor enviou signal para Escritores, pois reading == 0"""
@@ -178,8 +172,9 @@ def tReaderSignalled(tid, logReading):
 	global writerSignal
 	global isFirstThread
 
-	#if(reading > 0): return 0
 	writerSignal += 1
+	writeTurn = 1
+
 	return 1
 
 def tWrote(tid, writtenValue):
@@ -198,11 +193,9 @@ def tWrote(tid, writtenValue):
 	global writerSignal
 	global isFirstThread
 
-	#print("writtenValue = "  + str(writtenValue) + " tid = " + str(tid) + " writing = " + str(writing) + " reading = " + str(reading) ) 
 	if(writtenValue != tid or writing > 1 or reading > 0):
 		return 0
 	sharedVar = writtenValue
-	writing -= 1
 	return 1
 
 def tWriterStartWrite(tid):
@@ -220,6 +213,10 @@ def tWriterStartWrite(tid):
 	global readerSignal
 	global writerSignal
 	global isFirstThread
+
+	if(isFirstThread):
+		writerSignal = 1
+		isFirstThread = 0
 
 	writing += 1
 	return 1
@@ -242,14 +239,8 @@ def tWriterBlocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn):
 	global isFirstThread
 
 	waitingToWrite += 1
-	print("wwaitingToWrite internal = " + str(waitingToWrite))
 
-	print("writeTurn internal = " + str(writeTurn))
-	print("reading int = " + str(reading))
-	print("writing internal = " + str(writing))
-
-
-	if(reading > 0 or writing > 0 or (waitingToRead > 0 and writeTurn < 0)):
+	if(reading > 0 or writing > 0 or (waitingToRead > 0 or writeTurn < 0)): #risk
 		return 1
 	else: 
 		return 0
@@ -270,21 +261,13 @@ def tWriterUnblocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn
 	global writerSignal
 	global isFirstThread
 
-	if(isFirstThread):
-		writerSignal = 1
-		isFirstThread = 0
-
-	if(writerSignal - 1 < 0): return 0
-	else: writerSignal -= 1
-
-	if not((reading > 0 or writing > 0 or (waitingToRead > 0 and writeTurn < 0))):
-		waitingToWrite -= 1
-		#writing += 1
-		writeTurn = -1
-		return 1
-
-	else: 
+	if(writerSignal - 1 < 0): 
 		return 0
+
+	else:
+		writerSignal -= 1
+		waitingToWrite -= 1
+		return 1
 
 def tWriterSignalledBroadcasted(tid):
 	"""Escritor sinalizou para escritores e broadcasteou para leitores"""
@@ -302,39 +285,49 @@ def tWriterSignalledBroadcasted(tid):
 	global writerSignal
 	global isFirstThread
 
-	#devodarmenos1aqui? (tem que ver)
 	writerSignal += 1
 	readerSignal = NTHREADS_READ
+	writing -= 1
+
 	return 1
 
 def main():
-	# Input variables
-	logFilePath = Path("logs/mainTest.txt/")
-		
-	if not logFilePath.exists():
-		print('Error: File does not exist!')
+	# Lista com arquivos de logs a serem testados
+	logFilePaths = []
 
-	try:
-		# Main routine
-		for command in open(logFilePath, 'r'):
-			if(eval(command)):
-				pass
-				#print("waitingToRead = " + str(waitingToRead))
-				#print("waitingToWrite = " + str(waitingToWrite))
-				print("reading = " + str(reading))
-				print(command.strip("\n") + " is correct")
-			else:
-				print(command.strip("\n") + " has failed!")
-		open(logFilePath, 'r').close()
+	# Coloca na lista todos os arquivos log
+	for file in os.listdir(Path("logs")):
+		if file.endswith(".txt"):
+			logFilePaths.append(Path("logs/" + file))
 
-	except OSError as err:
-			print("OS error: {0}".format(err))
-	except ValueError:
-			print("Could not convert data to an integer.")
-	except:
-			print("Unexpected error:", sys.exc_info()[0])
-			raise
+	for currentTestPath in logFilePaths:
+		if not currentTestPath.exists():
+			print('Error: File does not exist!')
+		try:
+			# Rotina principal, por arquivo de teste. Checa se todos os comandos foram executados corretamente
+			lineCounter = 0
+			failedLineCounter = 0
+			print('Testando ' + str(currentTestPath)) 
+			logFile = open(currentTestPath, 'r')
+			for lineNum, command in enumerate(logFile, start=1):
+				if(eval(command)):
+					pass
+					lineCounter += 1
+				else:
+					print(command.strip("\n") + " falhou na linha " + str(lineNum))
+					failedLineCounter += 1
+			print('Arquivo testado com sucesso')
+			print('Linhas testadas: ' + str(lineCounter + failedLineCounter))
+			print('Linhas errôneas detectadas:' + str(failedLineCounter) + '\n')
+			logFile.close()
 
+		except OSError as err:
+				print("OS error: {0}".format(err))
+		except ValueError:
+				print("Could not convert data to an integer.")
+		except:
+				print("Unexpected error:", sys.exc_info()[0])
+				raise
 
 if __name__ == '__main__':
 	main()
