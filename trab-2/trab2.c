@@ -137,6 +137,8 @@ int startWrite(int tid) {
     // Não pode-se escrever enquanto outros escritores escrevem, ou outros leitores leem.
     // Inanição evitada pelas filas waitingToRead e o turno de escrita
     while(reading > 0 || writing > 0 || (waitingToRead > 0 && writeTurn < 0 ))  {
+        // Esse segundo check de nWrites evita que threads que foram desbloqueadas depois do término das leituras (nReads == 0)
+        // façam uma leitura extra
         while(nWrites == 0) {
             pthread_mutex_unlock(&mutex);
             return 1;
