@@ -171,9 +171,7 @@ def tReaderSignalled(tid, logReading):
 	global writerSignal
 	global isFirstThread
 
-	#if(reading > 0): return 0
 	writerSignal += 1
-	#reading -= 1
 	writeTurn = 1
 
 	return 1
@@ -194,7 +192,6 @@ def tWrote(tid, writtenValue):
 	global writerSignal
 	global isFirstThread
 
-	#	print("writtenValue = "  + str(writtenValue) + " tid = " + str(tid) + " writing = " + str(writing) + " reading = " + str(reading) ) 
 	if(writtenValue != tid or writing > 1 or reading > 0):
 		return 0
 	sharedVar = writtenValue
@@ -241,12 +238,6 @@ def tWriterBlocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn):
 	global isFirstThread
 
 	waitingToWrite += 1
-	#print("wwaitingToWrite internal = " + str(waitingToWrite))
-
-	#print("writeTurn internal = " + str(writeTurn))
-	#print("reading int = " + str(reading))
-	#rint("writing internal = " + str(writing))
-
 
 	if(reading > 0 or writing > 0 or (waitingToRead > 0 or writeTurn < 0)): #risk
 		return 1
@@ -277,14 +268,6 @@ def tWriterUnblocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn
 		waitingToWrite -= 1
 		return 1
 
-
-	#if not((reading > 0 or writing > 0 or (waitingToRead > 0 and writeTurn < 0))):
-		
-
-	#else: 
-	#	print("DEU CUUUU")
-	#	return 0
-
 def tWriterSignalledBroadcasted(tid):
 	"""Escritor sinalizou para escritores e broadcasteou para leitores"""
 	global NTHREADS_READ
@@ -301,7 +284,6 @@ def tWriterSignalledBroadcasted(tid):
 	global writerSignal
 	global isFirstThread
 
-	#devodarmenos1aqui? (tem que ver)
 	writerSignal += 1
 	readerSignal = NTHREADS_READ
 	writing -= 1
@@ -309,40 +291,31 @@ def tWriterSignalledBroadcasted(tid):
 	return 1
 
 def main():
-	# Input variables
-	logFilePath = Path("logs/mainTest.txt/")
-		
-	if not logFilePath.exists():
-		print('Error: File does not exist!')
+	# Variável de arquivo de teste
+	logFilePaths = [Path("logs/mainTest.txt/")]
+	
+	
 
-	try:
-		# Main routine
-		for command in open(logFilePath, 'r'):
-			if(eval(command)):
-				#print(writing)
-				if(writing > 1): print("SHIIIIII")
-				if(reading > 2): print("FUUUUUUU")
-				#print("readerSignal == " + str(readerSignal))
-				#print("writeTurn == " + str(writeTurn) )
-				#print("waitingToRead = " + str(waitingToRead))
-				#print("waitingToWrite = " + str(waitingToWrite))
-				#print("writerSignal = " + str(writerSignal))
-				#print("writing = " + str(writing))
+	for currentTestPath in logFilePaths:
+		if not currentTestPath.exists():
+			print('Error: File does not exist!')
+		try:
+			# Main routine
+			logFile = open(currentTestPath, 'r')
+			for lineNum, command in enumerate(logFile, start=1):
+				if(eval(command)):
+					pass
+				else:
+					print(command.strip("\n") + " falhou na linha " + str(lineNum))
+			logFile.close()
 
-				#print("reading = " + str(reading))
-				#print(command.strip("\n") + " is correct")
-				pass
-			else:
-				print(command.strip("\n") + " has failed!")
-		open(logFilePath, 'r').close()
-
-	except OSError as err:
-			print("OS error: {0}".format(err))
-	except ValueError:
-			print("Could not convert data to an integer.")
-	except:
-			print("Unexpected error:", sys.exc_info()[0])
-			raise
+		except OSError as err:
+				print("OS error: {0}".format(err))
+		except ValueError:
+				print("Could not convert data to an integer.")
+		except:
+				print("Unexpected error:", sys.exc_info()[0])
+				raise
 
 
 if __name__ == '__main__':
