@@ -70,9 +70,12 @@ int startRead(int tid, FILE *mainFilePointer) {
         fprintf(mainFilePointer, "tReaderBlocked(%d, %d, %d, %d)\n", tid, writing, waitingToWrite, writeTurn);
         pthread_cond_wait(&cond_read, &mutex);
         waitingToRead--;  // e a desmarcam ao parar de esperar
+        fprintf(stdout, "Thread Leitora de ID %d segue porque writing == %d\n", tid, writing);
+        fprintf(mainFilePointer, "tReaderUnblocked(%d, %d, %d, %d)\n", tid, writing, waitingToWrite, writeTurn);
     }
-    fprintf(stdout, "Thread Leitora de ID %d segue porque writing == %d\n", tid, writing);
-    fprintf(mainFilePointer, "tReaderUnblocked(%d, %d, %d, %d)\n", tid, writing, waitingToWrite, writeTurn);
+
+    fprintf(stdout, "Thread Leitora de ID %d vai ler\n", tid);
+    fprintf(mainFilePointer, "tReaderStartRead(%d)\n", tid);
     reading++;  // Agora há +1 thread lendo
     nReads--;   // Cada leitura é subtraída no startRead
 
@@ -115,14 +118,17 @@ int startWrite(int tid,  FILE *mainFilePointer) {
         }
   
         waitingToWrite++;  //Threads esperando marcam sua respectiva fila de espera
+        
         fprintf(stdout, "Thread Escritora de ID %d irá esperar cond_write (pois reading (%d) > 0 ou writing (%d) > 0 (waitingToRead = %d, writeTurn = %d) )\n", tid, reading, writing, waitingToRead, writeTurn);
         fprintf(mainFilePointer, "tWriterBlocked(%d, %d, %d, %d, %d)\n", tid, reading, writing, waitingToRead, writeTurn);
         pthread_cond_wait(&cond_write, &mutex); // e a desmarcam ao parar de esperar
+        
         waitingToWrite--;
+        
+        fprintf(stdout, "Thread Escritora de ID %d desbloqueada pois reading = %d ou writing = %d ou (waitingToRead = %d writeTurn = %d))\n", tid, reading, writing, waitingToRead, writeTurn);
+        fprintf(mainFilePointer, "tWriterUnblocked(%d, %d, %d, %d, %d)\n", tid, reading, writing, waitingToRead, writeTurn);
     }
 
-    fprintf(stdout, "Thread Escritora de ID %d desbloqueada pois reading = %d ou writing = %d ou (waitingToRead = %d writeTurn = %d))\n", tid, reading, writing, waitingToRead, writeTurn);
-    fprintf(mainFilePointer, "tWriterUnblocked(%d, %d, %d, %d, %d)\n", tid, reading, writing, waitingToRead, writeTurn);
     writing++;
     nWrites--;
 
@@ -153,7 +159,7 @@ void * reader (void *arg) {
     FILE *mainFilePointer; // mainFilePointer é o log principal de diagnostico, que será avaliado pelo logger auxiliar
     FILE *tidFilePointer;  // tidFilePointer é o .txt para cada thread leitora com seus valores lidos
     
-    mainFilePointer = fopen(mainFilePath, "a+");
+    mainFilePointer = fopen(mainFilePath, "a");
     if(!mainFilePointer) {
         printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
     }
@@ -192,7 +198,7 @@ void * writer (void *arg) {
     int tid = * (int *) arg;
     FILE *mainFilePointer;
     
-    mainFilePointer = fopen(mainFilePath, "a+");
+    mainFilePointer = fopen(mainFilePath, "a");
     if(!mainFilePointer) {
         printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
     }
@@ -250,7 +256,7 @@ int main(int argc, char *argv[]) {
     NTHREADS = NTHREADS_READ + NTHREADS_WRITE;
 
     // Abertura do arquivo de log   
-    mainFilePointer = fopen(mainFilePath, "a+");
+    mainFilePointer = fopen(mainFilePath, "a");
     if(!mainFilePointer) {
         printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
     }
@@ -259,7 +265,7 @@ int main(int argc, char *argv[]) {
     fprintf(stdout, "commandLineParametersRead(%d, %d, %d, %d)\n", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites);
 
     fclose(mainFilePointer);
-    
+
     tids = malloc(sizeof(pthread_t) * NTHREADS); if(!tids) exit(-1);
     
     sharedVar = -1; //Começa como -1.

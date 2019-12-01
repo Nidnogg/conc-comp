@@ -48,6 +48,7 @@ def commandLineParametersRead(nReaderThreads, nWriterThreads, logNReads, logNWri
 	global readerSignal
 	global writerSignal
 	global isFirstThread
+	global evilDebug
 
 	NTHREADS_READ = nReaderThreads
 	NTHREADS_WRITE = nWriterThreads
@@ -72,12 +73,33 @@ def tRead(tid, readValue):
 	global writerSignal
 	global isFirstThread
 
+	print(readValue)
+	print(sharedVar)
 	if((readValue != sharedVar) or writing > 0): 
 		return 0
 	else:
 		reading -= 1
 		writeTurn = 1
 		return 1
+
+def tReaderStartRead(tid):
+	"""Thread tid leu readValue"""
+	global NTHREADS_READ
+	global NTHREADS_WRITE
+	global nReads
+	global nWrites
+	global reading
+	global writing
+	global waitingToWrite
+	global waitingToRead
+	global writeTurn
+	global sharedVar
+	global readerSignal
+	global writerSignal
+	global isFirstThread
+
+	reading += 1
+	return 1
 	
 def tReaderBlocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 	"""Leitor foi bloqueado, se writing > 0 || (waitingToWrite > 0 && writeTurn > 0)"""
@@ -227,7 +249,7 @@ def tWriterUnblocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn
 		writing += 1
 		writeTurn = -1
 		return 1
-		
+
 	else: 
 		return 0
 
@@ -254,7 +276,7 @@ def tWriterSignalledBroadcasted(tid):
 
 def main():
 	# Input variables
-	logFilePath = Path("logs/main.txt/")
+	logFilePath = Path("logs/mainTest.txt/")
 		
 	if not logFilePath.exists():
 		print('Error: File does not exist!')
@@ -263,10 +285,11 @@ def main():
 		# Main routine
 		for command in open(logFilePath, 'r'):
 			if(eval(command)):
-				print("waitingToRead = " + str(waitingToRead))
-				print("waitingToWrite = " + str(waitingToWrite))
+				#print("waitingToRead = " + str(waitingToRead))
+				#print("waitingToWrite = " + str(waitingToWrite))
 
 				print(command.strip("\n") + " is correct")
+				pass
 			else:
 				print(command.strip("\n") + " has failed!")
 		open(logFilePath, 'r').close()

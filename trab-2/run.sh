@@ -1,1 +1,1 @@
-./trab2 2 2 5 5 ./logs/mainTest.txt
+./trab2 2 2 6 6 ./logs/mainTest.txt
