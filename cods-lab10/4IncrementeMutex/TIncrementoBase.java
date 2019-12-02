@@ -24,6 +24,7 @@ class S {
   }
 */
   // ou...
+  
 //Bloco Synchronized 
   public synchronized void inc() { 
      this.r++; 
@@ -32,8 +33,6 @@ class S {
   public synchronized int get() { 
       return this.r; 
   }
-
- 
 }
 
 //classe que estende Thread e implementa a tarefa de cada thread do programa 
@@ -75,7 +74,7 @@ class TIncrementoBase {
          threads[i] = new T(i, s);
          threads[i].start();  //inicia threads
       }
-
+      
       //espera pelo termino de todas as threads
       for (int i=0; i<threads.length; i++) {
          try { threads[i].join(); } catch (InterruptedException e) { return; }
