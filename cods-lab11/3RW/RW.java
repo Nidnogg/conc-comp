@@ -10,20 +10,20 @@ class SharedVar {
   public synchronized void startRead(int tid) {
     while(this.writing > 0) {
       try {
-          System.out.println("Reader Thread " + tid + " will wait until writing > 0 is false");
+          System.out.println("tReaderBlocked(" + tid + ", 0, 0, 0, 0)");//System.out.println("Reader Thread " + tid + " will wait until writing > 0 is false");
           this.wait();
       } catch(InterruptedException e) { System.out.println("Error: " + e.getMessage()); }
     }
 
     this.reading++;
-    System.out.println("Thread " + tid + " will read");
+    System.out.println("tReaderStartRead(" + tid + ")");//System.out.println("Thread " + tid + " will read");
   }
 
   public synchronized void endRead(int tid) {
     this.reading--;
-    System.out.println("Thread " + tid + " stopped reading");
+    //System.out.println("Thread " + tid + " stopped reading");
     try {
-      System.out.println("Thread " + tid + " will call notifyAll() to free all readers/writers");
+      System.out.println("tReaderSignalled(" + tid + ", 0)");//System.out.println("Thread " + tid + " will call notifyAll() to free all readers/writers");
       this.notifyAll();
     } catch(IllegalMonitorStateException e) { System.out.println("Error: " + e.getMessage()); }
 
@@ -32,20 +32,20 @@ class SharedVar {
   public synchronized void startWrite(int tid) {
     while(this.writing > 0 || this.reading > 0) {
       try {
-          System.out.println("Writer thread " + tid + " will wait until writing > 0 || reading > 0 is false");
+          System.out.println("tWriterBlocked(" + tid + ", 0, 0, 0, 0)");//System.out.println("Writer thread " + tid + " will wait until writing > 0 || reading > 0 is false");
           this.wait();
       } catch(InterruptedException e) { System.out.println("Error: " + e.getMessage()); }
     }
 
     this.writing++;
-    System.out.println("Thread " + tid + " will write");
+    System.out.println("tWriterStartWrite(" + tid + ")");//System.out.println("Thread " + tid + " will write");
   }
 
   public synchronized void endWrite(int tid) {
     this.writing--;
-    System.out.println("Thread " + tid + " stopped writing");
+    //System.out.println("Thread " + tid + " stopped writing");
     try {
-      System.out.println("Thread " + tid + " will call notifyAll() to free all readers/writers");
+      System.out.println("tWriterSignalledBroadcasted(" + tid + ")");//System.out.println("Thread " + tid + " will call notifyAll() to free all readers/writers");
       this.notifyAll();
     } catch(IllegalMonitorStateException e) { System.out.println("Error: " + e.getMessage()); }
   }
@@ -76,7 +76,7 @@ class Reader extends Thread {
       this.s.startRead(tid);
       // Leitura
       readItem = s.get();
-      System.out.println("Thread " + this.tid + " read " + this.readItem);
+      System.out.println("tRead(" + tid + ", " + readItem + ")");//System.out.println("Thread " + this.tid + " read " + this.readItem);
       try {
       this.sleep(1000);
       } catch(InterruptedException e) { System.out.println("Error: " + e.getMessage()); }  
@@ -121,17 +121,17 @@ class RW {
     SharedVar s = new SharedVar(nReaders, nWriters);
 
     for(int i = 0; i < nReaders; i++) {
+      //System.out.println("Created reader thread " + i);
       threads[i] = new Reader(i, s);
-      System.out.println("Created reader thread " + i);
     }
 
     for(int i = nReaders; i < (nReaders + nWriters); i++) {
-      System.out.println("Created writer thread " + i);
+      //System.out.println("Created writer thread " + i);
       threads[i] = new Writer(i, s);
     }
 
     for(int i = 0; i < (nReaders + nWriters); i++) {
-      System.out.println("Starting thread " + i);
+      //System.out.println("Starting thread " + i);
       threads[i].start();
     }
 

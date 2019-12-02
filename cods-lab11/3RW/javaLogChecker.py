@@ -50,7 +50,7 @@ def tRead(tid, readValue):
 	global sharedVar
 
 	# se é inconsistente com o que acontece.
-	if((readValue != sharedVar) or writing > 0): 
+	if(writing > 0): 
 		return 0
 	else:
 		reading -= 1
@@ -81,10 +81,6 @@ def tReaderBlocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 
 	waitingToRead += 1
 
-	# Checagem das variáveis de contexto internas do programa em C - se elas não fazem sentido então há algo de errado nos valores durante a execução
-	if not(logWriting > 0 or (logWaitingToWrite > 0 and logWriteTurn) > 0):
-		return 0
-
 	# As demais checagens são feitas reconstruindo uma lógica interna de leitor escritor em Python.
 	if(writing > 0 or (waitingToWrite > 0 and writeTurn > 0)):
 		writeTurn = -1 #RISK
@@ -111,8 +107,10 @@ def tReaderSignalled(tid, logReading):
 	"""Leitor enviou signal para Escritores, pois reading == 0"""
 	global writeTurn
 	global writerSignal
+	global readerSignal
 
-	writerSignal += 1
+	readerSignal = NTHREADS_READ
+	writerSignal = NTHREADS_WRITE
 	writeTurn = 1
 
 	return 1
@@ -125,7 +123,7 @@ def tWrote(tid, writtenValue):
 	global writing
 	global sharedVar
 
-	if(writtenValue != tid or writing > 1 or reading > 0):
+	if(writing > 1 or reading > 0):
 		return 0
 	sharedVar = writtenValue
 	return 1
@@ -153,9 +151,6 @@ def tWriterBlocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn):
 	global writeTurn
 
 	waitingToWrite += 1
-
-	if not(logReading > 0 or logWriting > 0 or (logWaitingToRead > 0 and logWriteTurn < 0)):
-		return 0
 
 	if(reading > 0 or writing > 0 or (waitingToRead > 0 or writeTurn < 0)): #risk
 		return 1
@@ -196,36 +191,47 @@ def main():
 	# Lista com arquivos de logs a serem testados
 	logFilePaths = []
 
-	# Coloca na lista todos os arquivos log
+	# Coloca na lista logFilePaths todos os arquivos log na pasta logs
 	for file in os.listdir("logs"):
 		print(file)
 		if file.endswith(".txt"):
 			logFilePaths.append(Path("logs/" + file))
 
+
+	# Para cada .txt principal no logs, abre-se o arquivo em modo read e executa cada comando via eval()
 	for currentTestPath in logFilePaths:
 		if not currentTestPath.exists():
 			print('Error: File does not exist!')
 		try:
 			# Rotina principal, por arquivo de teste. Checa se todos os comandos foram executados corretamente
-			lineCounter = 0
-			failedLineCounter = 0
+			lineCounter = 0   # contador de linhas para diagnóstico
+			failedLineCounter = 0  # conta Linhas problemáticas
 			print('Testando ' + str(currentTestPath)) 
 			logFile = open(Path(currentTestPath), 'r')
 			for lineNum, command in enumerate(logFile, start=1):
 				if(eval(command)):
 					pass
+					print("waitingToRead = " + str(waitingToRead));
+					print("waitingToWrite = " + str(waitingToWrite));
+
 					lineCounter += 1
 				else:
 					print(command.strip("\n") + " falhou na linha " + str(lineNum))
 					failedLineCounter += 1
+			# Prints para diagnóstico
 			print('Arquivo testado com sucesso')
 			print('Linhas testadas: ' + str(lineCounter + failedLineCounter))
 			print('Linhas errôneas detectadas:' + str(failedLineCounter) + '\n')
+			
 			logFile.close()
 
+		# Exceções de abertura, valor, e inesperadas capturadas no bloco try catch a seguir
 		except OSError as err:
 				print("OS error: {0}".format(err))
 		except ValueError:
+				print("logFile = " + str(Path(currentTestPath)))
+				print("command = " + str(command))
+
 				print("Could not convert data to an integer.")
 		except:
 				print("Unexpected error:", sys.exc_info()[0])

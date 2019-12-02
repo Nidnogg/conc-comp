@@ -35,7 +35,7 @@ char * concat(const char *s1, const char *s2){
 
 // Auxiliar, gera filePath de cada tid leitra
 char * generateFileName(int tid) {
-    char fileName0[30] = "./logs/lastTestReaders/";
+    char fileName0[30] = "./logs/currentTestReads/";
     char fileName1[20]; 
     sprintf(fileName1, "%d.txt", tid);   
 
@@ -70,6 +70,8 @@ int startRead(int tid) {
         
         waitingToRead++; //Threads esperando marcam sua respectiva fila de espera
 
+        // Atenção - cada bloco com &fileMutex indica um print. O código não é longo para prejudicar quem está lendo-o, mas sim por conta de infelicidades
+        // do tratamento de strings em C, que por bem ou por mal, é um grande empecilho para muitos programadores.  
         pthread_mutex_lock(&fileMutex);
         fprintf(stdout, "Thread Leitora de ID %d irá se bloquear esperando writing > 0 (writing == %d) (waitingToRead = %d), (writeTurn = %d)\n", tid, writing, waitingToRead, writeTurn);
         char commandToAppend[40];
@@ -312,12 +314,9 @@ int main(int argc, char *argv[]) {
     if(!mainFilePointer) {
         printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
     }
-   // fprintf(stdout, "Parâmetros lidos: <# of reader threads = %d> <# of writer threads %d> <# of reads %d> <# of writes = %d> <mainFilePath.txt = %s>\n", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites, mainFilePath);
-    //pthread_mutex_lock(&fileMutex);
+
     fprintf(mainFilePointer, "commandLineParametersRead(%d, %d, %d, %d)\n", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites);
     fprintf(stdout, "commandLineParametersRead(%d, %d, %d, %d)\n", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites);
-    //pthread_mutex_unlock(&fileMutex);
-
 
     tids = malloc(sizeof(pthread_t) * NTHREADS); if(!tids) exit(-1);
     

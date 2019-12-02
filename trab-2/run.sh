@@ -1,1 +1,1 @@
-./trab2 2 2 10 10 ./logs/lastTest.txt
+./trab2 2 2 10 10 ./logs/testCurrent.txt

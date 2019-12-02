@@ -25,7 +25,7 @@ class IncrementerThread extends Thread {
   int tid, nThreads;
   SharedArray arrA, arrB, arrC;
   
-  public IncrementerThread(int tid, int nThreads, SharedArray arrA, SharedArray arrB, SharedArray arrC) {
+  IncrementerThread(int tid, int nThreads, SharedArray arrA, SharedArray arrB, SharedArray arrC) {
     this.tid = tid;
     this.nThreads = nThreads;
     this.arrA = arrA;
