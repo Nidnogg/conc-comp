@@ -11,7 +11,7 @@ int reading = 0, writing = 0, waitingToWrite = 0, waitingToRead = 0, writeTurn =
 int sharedVar;  
 
 // Variáveis globais de entrada e saída
-int nReads, nWrites, NTHREADS_READ, NTHREADS_WRITE;
+int nReadsPerThread, nWritesPerThread, NTHREADS_READ, NTHREADS_WRITE;
 char *mainFilePath;
 
 char *commandList;
@@ -50,23 +50,14 @@ char * generateFileName(int tid) {
 // Seção crítica protegida por locks - Bloco de início de leitura, retorna 1 se já terminou nReads
 // Aqui é assegurado que threads leitoras esperem caso as escritoras estejam ativas ou não 
 // Além disso, é garantido por meio de nReads que sejam lidos exatamente quantos itens foram especificados na linha de comando
-int startRead(int tid) {
+void startRead(int tid) {
     pthread_mutex_lock(&mutex);
-
-    while(nReads <= 0) {  // Se acabou o # de leituras, destrava o mutex e retorna 1
-        pthread_mutex_unlock(&mutex);
-        return 1;
-    }
 
     writeTurn = -1; // writeTurn dá conta das threads escritoras que foram desbloqueadas, mas perderam tempo da CPU antes de lerem
 
     // Se algum escritor estiver escrevendo, leitor espera
     // Somado a isso, para prevenir inanição, sinaliza-se também se há escritores esperando e se está no turno deles escreverem (writeTurn)
     while(writing > 0 || (waitingToWrite > 0 && writeTurn > 0)) {
-        while(nReads == 0) {  // Checa-se nReads aqui também para liberar threads que estavam esperando e nReads terminou antes de serem desbloqueadas
-            pthread_mutex_unlock(&mutex);
-            return 1;
-        }
         
         waitingToRead++; //Threads esperando marcam sua respectiva fila de espera
 
@@ -99,10 +90,8 @@ int startRead(int tid) {
     pthread_mutex_unlock(&fileMutex);
 
     reading++;  // Agora há +1 thread lendo
-    nReads--;   // Cada leitura é subtraída no startRead
 
     pthread_mutex_unlock(&mutex);
-    return 0;
 }
 
 // Seção crítica protegida por locks - Essa routina sinaliza o fim de leitura, liberando threads escritoras que estavam em espera, 
@@ -129,27 +118,14 @@ void endRead(int tid) {
 }
 
 // Seção crítica de início de escrita - garante inanição e que threads escritoras esperem conforme a definição do problema
-int startWrite(int tid) {
+void startWrite(int tid) {
     pthread_mutex_lock(&mutex);
 
-    while(nWrites == 0) {
-        pthread_mutex_unlock(&mutex);
-        return 1;
-    }
-  
     // Não pode-se escrever enquanto outros escritores escrevem, ou outros leitores leem.
     // Inanição evitada pelas filas waitingToRead e o turno de escrita
     while(reading > 0 || writing > 0 || (waitingToRead > 0 && writeTurn < 0 ))  {
-        // Esse segundo check de nWrites evita que threads que foram desbloqueadas depois do término das leituras (nReads == 0)
-        // façam uma leitura extra
-        while(nWrites == 0) {
-            pthread_mutex_unlock(&mutex);
-            return 1;
-        }
-  
         waitingToWrite++;  //Threads esperando marcam sua respectiva fila de espera
-        
-         
+    
         pthread_mutex_lock(&fileMutex);
         fprintf(stdout, "Thread Escritora de ID %d irá esperar cond_write (pois reading (%d) > 0 ou writing (%d) > 0 (waitingToRead = %d, writeTurn = %d) )\n", tid, reading, writing, waitingToRead, writeTurn);
         char commandToAppend[40];
@@ -177,10 +153,8 @@ int startWrite(int tid) {
     pthread_mutex_unlock(&fileMutex);
 
     writing++;
-    nWrites--;
 
     pthread_mutex_unlock(&mutex);
-    return 0;
 }
 
 // Garante a liberamento das threads leitoras paradas
@@ -205,7 +179,8 @@ void endWrite(int tid) {
 // Função chamada pelas threads leitoras
 void * reader (void *arg) {
     int tid = * (int *) arg;
-    int readItem;
+    int readItem; 
+    int nReads = nReadsPerThread;// nReads local pra indicar o término das leituras
 
     char *tidFilePath = generateFileName(tid);
     FILE *tidFilePointer;  // tidFilePointer é o .txt para cada thread leitora com seus valores lidos
@@ -216,11 +191,9 @@ void * reader (void *arg) {
     }
 
 
-    while(1) {
-        if(startRead(tid)) {  // Seção crítica protegida por locks
-            break; // break caso tenha acabado o # de leituras (startRead retorna 1)
-        }
-
+    while(nReads > 0) {
+        startRead(tid);  // Seção crítica protegida por locks
+        
         readItem = sharedVar;
 
         pthread_mutex_lock(&fileMutex);
@@ -229,8 +202,8 @@ void * reader (void *arg) {
         sprintf(commandToAppend, "tRead(%d, %d)\n", tid, readItem);
         commandList = concat(commandList, commandToAppend);
         pthread_mutex_unlock(&fileMutex);
-
         fprintf(tidFilePointer, "%d\n", readItem);
+        nReads--;   // Cada leitura é subtraída no startRead
 
         endRead(tid); // Seção crítica protegida por locks
         sleep(1); // Tempo de processamento - necessário de se ajustar em certos computadores para que funcione corretamente. Deve ser o mesmo para leitora e escritora.
@@ -247,12 +220,11 @@ void * reader (void *arg) {
 // Função chamada pelas threads escritoras
 void * writer (void *arg) {
     int tid = * (int *) arg;
+    int nWrites = nWritesPerThread;
     
-    while(1) {
-        if(startWrite(tid)) { // Seção crítica protegida por locks
-            break;
-        }
-
+    while(nWrites > 0) {
+        startWrite(tid);  // Seção crítica protegida por locks
+        
         // Contexto Protegido em startWrite
         sharedVar = tid; // Escreve-se em sharedVar. Nesse trecho, todas as outras threads estarão esperando esta termina em razão dos condicionais
         pthread_mutex_lock(&fileMutex);
@@ -261,6 +233,7 @@ void * writer (void *arg) {
         sprintf(commandToAppend, "tWrote(%d, %d)\n", tid, sharedVar);
         commandList = concat(commandList, commandToAppend);
         pthread_mutex_unlock(&fileMutex);
+        nWrites--;
 
         endWrite(tid); // Seção crítica
         sleep(1); // Importante ser o mesmo tempo que em readers!
@@ -304,8 +277,8 @@ int main(int argc, char *argv[]) {
     // Leitura de parâmetros
     NTHREADS_READ = atoi(argv[1]);
     NTHREADS_WRITE = atoi(argv[2]);
-    nReads = atoi(argv[3]);
-    nWrites = atoi(argv[4]);
+    nReadsPerThread = atoi(argv[3]);
+    nWritesPerThread = atoi(argv[4]);
     mainFilePath = argv[5];
 
     NTHREADS = NTHREADS_READ + NTHREADS_WRITE;
@@ -316,8 +289,8 @@ int main(int argc, char *argv[]) {
         printf("Failed to fopen! Error: %s\n", strerror(errno)); //exit(-1);
     }
 
-    fprintf(mainFilePointer, "commandLineParametersRead(%d, %d, %d, %d)\n", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites);
-    fprintf(stdout, "commandLineParametersRead(%d, %d, %d, %d)\n", NTHREADS_READ, NTHREADS_WRITE, nReads, nWrites);
+    fprintf(mainFilePointer, "commandLineParametersRead(%d, %d, %d, %d)\n", NTHREADS_READ, NTHREADS_WRITE, nReadsPerThread, nWritesPerThread);
+    fprintf(stdout, "commandLineParametersRead(%d, %d, %d, %d)\n", NTHREADS_READ, NTHREADS_WRITE, nReadsPerThread, nWritesPerThread);
 
     tids = malloc(sizeof(pthread_t) * NTHREADS); if(!tids) exit(-1);
     
