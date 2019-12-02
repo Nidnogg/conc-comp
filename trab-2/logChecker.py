@@ -13,8 +13,6 @@ import sys # Requer python versão maior que 3.4!
 # Variáveis de entrada e saída
 NTHREADS_READ = 0
 NTHREADS_WRITE = 0
-nReads = 0
-nWrites = 0 
 
 # Variáveis do problema leitor escritor base, todas descritas no código em C.
 reading = 0
@@ -94,7 +92,7 @@ def tReaderBlocked(tid, logWriting, logWaitingToWrite, logWriteTurn):
 
 	# As demais checagens são feitas reconstruindo uma lógica interna de leitor escritor em Python.
 	if(writing > 0 or (waitingToWrite > 0 and writeTurn > 0)):
-		writeTurn = -1 #RISK
+		writeTurn = -1 
 		return 1
 	else: 
 		return 0
@@ -159,12 +157,12 @@ def tWriterBlocked(tid, logReading, logWriting, logWaitingToRead, logWriteTurn):
 	global waitingToRead
 	global writeTurn
 
-	waitingToWrite += 1
+	waitingToWrite += 1 # Está esperando, marca na fila
 
-	if not(logReading > 0 or logWriting > 0 or (logWaitingToRead > 0 and logWriteTurn < 0)):
+	if not(logReading > 0 or logWriting > 0 or (logWaitingToRead > 0 and logWriteTurn < 0)): # Avaliação do contexto interno do programa
 		return 0
 
-	if(reading > 0 or writing > 0 or (waitingToRead > 0 or writeTurn < 0)): #risk
+	if(reading > 0 or writing > 0 or (waitingToRead > 0 or writeTurn < 0)):
 		return 1
 	else: 
 		return 0
@@ -189,8 +187,8 @@ def tWriterSignalledBroadcasted(tid):
 	global readerSignal
 	global writerSignal
 
-	writerSignal += 1
-	readerSignal = NTHREADS_READ
+	writerSignal += 1 # writer recebe um signal com a chamada
+	readerSignal = NTHREADS_READ # readers recebem um broadcast que libera todos
 	writing -= 1
 
 	return 1

@@ -4,7 +4,7 @@ Códigos para a disciplina de Computação Concorrente, de 2019.2 lecionada pela
 ## Trabalho de Implementação 1 - Quadratura Gaussiana
 Encontra-se armazenado em trab-1, e o relatório está na seção abaixo.
 
-## Trabalho de Implementação 2 - Quadratura Gaussiana
+## Trabalho de Implementação 2 - Leitor e Escritor sem Starvation
 Encontra-se armazenado em trab-2. Relatório também disponível abaixo.
 
 ### Links 

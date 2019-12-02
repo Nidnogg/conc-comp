@@ -70,8 +70,9 @@ int startRead(int tid) {
         
         waitingToRead++; //Threads esperando marcam sua respectiva fila de espera
 
-        // Atenção - cada bloco com &fileMutex indica um print. O código não é longo para prejudicar quem está lendo-o, mas sim por conta de infelicidades
-        // do tratamento de strings em C, que por bem ou por mal, é um grande empecilho para muitos programadores.  
+        // Atenção - cada bloco com &fileMutex indica um print. O código não é longo para prejudicar quem está lendo-o, m
+        // as sim por conta de infelicidades do tratamento de strings em C, que por bem ou por mal, é um grande empecilho 
+        // para muitos programadores.  
         pthread_mutex_lock(&fileMutex);
         fprintf(stdout, "Thread Leitora de ID %d irá se bloquear esperando writing > 0 (writing == %d) (waitingToRead = %d), (writeTurn = %d)\n", tid, writing, waitingToRead, writeTurn);
         char commandToAppend[40];
