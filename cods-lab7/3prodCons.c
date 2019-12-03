@@ -112,7 +112,8 @@ void * prod(void *arg) {
     insertBuffer(elem, tid);
     count_fib++;
   }
-
+  
+  free(arg);
   pthread_exit(NULL);
 }
 
@@ -136,6 +137,7 @@ void * cons(void *arg) {
     }
   }
 
+  free(arg);
   pthread_exit(NULL);
 }
 
@@ -156,32 +158,31 @@ int main(int argc, char* argv[]) {
   for(int i = 0; i < BUFFERSIZE; i++) buffer[i] = 0;
   printBuffer();
 
-  // Creates producer threads
+ // Creates producer threads
   for(int i = 0; i < N_PROD; i++) {
     tid = malloc(sizeof(int)); if(!tid) exit(-1);
+    *tid = i;
     if(pthread_create(&tids[i], NULL, prod, (void *) tid)) exit(-1);
   }
 
   // Creates consumer threads
-  for(int i = 0; i < N_CONS; i++) {
+  for(int i = N_PROD; i < (N_PROD + N_CONS); i++) {
     tid = malloc(sizeof(int)); if(!tid) exit(-1);
+    *tid = i;
     if(pthread_create(&tids[i], NULL, cons, (void *) tid)) exit(-1);
   }
 
   // Loops while producer/consumer threads runx
-  while(1) {
 
-    /*
-    // Garbage collection
-      free(tid);
-      free(tids);
-      pthread_mutex_destroy(&mutex);
-      pthread_cond_destroy(&cond_prod);
-      pthread_cond_destroy(&cond_cons);
-      pthread_exit(NULL);
-    }
-    */
-
-    
+  for(int i = 0; i < (N_PROD + N_CONS); i++) {
+    if(pthread_join(tids[i], NULL)) exit(-1);
   }
+
+  // Garbage collection
+  free(tids);
+  pthread_mutex_destroy(&mutex);
+  pthread_cond_destroy(&cond_prod);
+  pthread_cond_destroy(&cond_cons);
+  pthread_exit(NULL);
+    
 }

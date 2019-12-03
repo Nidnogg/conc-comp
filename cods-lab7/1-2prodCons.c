@@ -146,17 +146,20 @@ int main(int argc, char* argv[]) {
   for(int i = 0; i < BUFFERSIZE; i++) buffer[i] = 0;
   printBuffer();
 
-  // Creates producer threads
+ // Creates producer threads
   for(int i = 0; i < N_PROD; i++) {
     tid = malloc(sizeof(int)); if(!tid) exit(-1);
+    *tid = i;
     if(pthread_create(&tids[i], NULL, prod, (void *) tid)) exit(-1);
   }
 
   // Creates consumer threads
-  for(int i = 0; i < N_CONS; i++) {
+  for(int i = N_PROD; i < (N_PROD + N_CONS); i++) {
     tid = malloc(sizeof(int)); if(!tid) exit(-1);
+    *tid = i;
     if(pthread_create(&tids[i], NULL, cons, (void *) tid)) exit(-1);
   }
+
 
   // Loops while producer/consumer threads runx
   while(1) {

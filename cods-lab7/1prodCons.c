@@ -105,7 +105,7 @@ void * prod(void *arg) {
     insertBuffer(elem, tid);
   }
 
-  //pthread_exit(NULL);
+  pthread_exit(NULL);
 }
 
 
@@ -113,14 +113,16 @@ void * cons(void *arg) {
   int tid = *(int *) arg;
   int removed_elem;
 
-  for(;;) removed_elem = removeBuffer(tid);
-  if(isPrime(removed_elem)) {
-    printf("%d is prime\n", removed_elem);
-  } else {
-    printf("%d is not prime\n", removed_elem); 
+  for(;;) {
+    removed_elem = removeBuffer(tid);
+    if(isPrime(removed_elem)) {
+      printf("%d is prime\n", removed_elem);
+    } else {
+      printf("%d is not prime\n", removed_elem); 
+    }
   }
 
-  //pthread_exit(NULL);
+  pthread_exit(NULL);
 }
 
 int main(int argc, char* argv[]) {
@@ -143,12 +145,16 @@ int main(int argc, char* argv[]) {
   // Creates producer threads
   for(int i = 0; i < N_PROD; i++) {
     tid = malloc(sizeof(int)); if(!tid) exit(-1);
+    *tid = i;
+    printf("Creating producer thread %d\n", *(int *) tid);
     if(pthread_create(&tids[i], NULL, prod, (void *) tid)) exit(-1);
   }
 
   // Creates consumer threads
-  for(int i = 0; i < N_CONS; i++) {
+  for(int i = N_PROD; i < (N_PROD + N_CONS); i++) {
     tid = malloc(sizeof(int)); if(!tid) exit(-1);
+    *tid = i;
+    printf("Creating consumer thread %d\n", *(int *) tid);
     if(pthread_create(&tids[i], NULL, cons, (void *) tid)) exit(-1);
   }
 
